@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Jemi Manager v5.5 | Neon Intelligence</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; display: flex; margin: 0; background: #0f111a; color: #eceff4; }
+        
+        /* 사이드바 고정 */
+        .sidebar { 
+            width: 280px; background: #1a1b26; position: fixed; 
+            height: 100vh; border-right: 1px solid #2e3440; 
+            padding-top: 20px; overflow-y: auto; z-index: 100;
+        }
+        .nav-label { padding: 20px 25px 8px; font-size: 11px; color: #4c566a; text-transform: uppercase; font-weight: bold; }
+        .nav-item { padding: 10px 40px; cursor: pointer; color: #9ea9c1; font-size: 14px; transition: 0.2s; }
+        .nav-item:hover, .nav-item.active { background: #24283b; color: #82aaff; border-right: 3px solid #82aaff; }
+
+        .main-content { margin-left: 280px; flex: 1; padding: 40px; min-width: 0; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .card { background: #1a1b26; padding: 25px; border-radius: 12px; border: 1px solid #2e3440; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        h1 { color: #82aaff; border-bottom: 1px solid #2e3440; padding-bottom: 15px; margin-top: 0; }
+        
+        /* 검색 및 옵션바 */
+        .search-box { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-bottom: 25px; background: #1a1b26; padding: 20px; border-radius: 12px; border: 1px solid #414868; }
+        input { background: #0f111a; border: 1px solid #4c566a; color: #eceff4; padding: 8px 12px; border-radius: 6px; text-align: center; }
+        button { background: #82aaff; border: none; color: #1a1b26; padding: 8px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        
+        /* 모드 스위치 스타일 */
+        .mode-switch { display: flex; align-items: center; gap: 10px; background: #0f111a; padding: 8px 15px; border-radius: 30px; border: 1px solid #414868; margin-left: 10px; }
+        .mode-switch label { font-size: 12px; cursor: pointer; color: #9ea9c1; display: flex; align-items: center; gap: 5px; }
+        .mode-switch input[type="radio"] { cursor: pointer; margin: 0; }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 30px; }
+        .metric-item { background: #24283b; padding: 12px; border-radius: 8px; border-left: 4px solid #414868; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2 style="text-align:center; color:#82aaff; margin-bottom: 30px;">💎 JEMI v5.5</h2>
+        <div class="nav-label">Dashboard</div>
+        <div class="nav-item active" onclick="openTab(event, 'flowchart.md')">Overall Flow</div>
+        <div class="nav-item" onclick="openTab(event, 'realtime-chart')">📈 Neon Intelligence</div>
+        
+        <div class="nav-label">Strategy MD</div>
+        {% for f in md_section_files %}
+        <div class="nav-item" onclick="openTab(event, '{{ f }}')">└ {{ f }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="main-content">
+        <div id="flowchart.md" class="tab-content active">
+            <h1>STRATEGY FLOW</h1>
+            <div class="card"><div class="mermaid">{{ contents['flowchart.md'] }}</div></div>
+        </div>
+
+        <div id="realtime-chart" class="tab-content">
+            <h1>NEON MARKET TREND</h1>
+            <div class="search-box">
+                <div><label style="color:#82aaff; font-size:11px;">TICKER</label><br><input type="text" id="ticker-input" value="005930" style="width:80px; margin-top:5px;"></div>
+                <div><label style="color:#82aaff; font-size:11px;">PERIOD</label><br><input type="date" id="start-date" style="margin-top:5px;"> ~ <input type="date" id="end-date" style="margin-top:5px;"></div>
+                
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="color:#82aaff; font-size:11px; margin-left:15px;">VIEW MODE</label>
+                    <div class="mode-switch">
+                        <label><input type="radio" name="view-mode" value="daily" checked onchange="toggleViewMode()"> Daily</label>
+                        <label><input type="radio" name="view-mode" value="cum" onchange="toggleViewMode()"> Cumulative</label>
+                    </div>
+                </div>
+
+                <div style="margin-top:18px; display:flex; gap:10px;">
+                    <button onclick="refreshChart()">ANALYZE</button>
+                    <button onclick="saveExcel()" style="background:#73daca;">SAVE EXCEL</button>
+                </div>
+            </div>
+            <div id="result-display" class="card" style="min-height: 500px;">
+                <p style="color:#565f89; text-align:center; padding-top:200px;">조회할 종목과 기간을 선택하세요.</p>
+            </div>
+        </div>
+
+        {% for f, content in contents.items() if f != 'flowchart.md' %}
+        <div id="{{ f }}" class="tab-content">
+            <h1>{{ f.upper() }}</h1>
+            <div class="card"><div id="render-{{ loop.index }}" class="markdown-body">{{ content }}</div></div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        let currentChartData = null; // 데이터를 메모리에 보관
+
+        mermaid.initialize({ theme: 'dark' });
+
+        window.onload = () => {
+            const today = new Date().toISOString().split('T')[0];
+            const lastMonth = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
+            document.getElementById('start-date').value = lastMonth;
+            document.getElementById('end-date').value = today;
+            document.querySelectorAll('.markdown-body').forEach(el => { el.innerHTML = marked.parse(el.innerText); });
+        };
+
+        async function refreshChart() {
+            const ticker = document.getElementById('ticker-input').value;
+            const start = document.getElementById('start-date').value.replace(/-/g, '');
+            const end = document.getElementById('end-date').value.replace(/-/g, '');
+            const display = document.getElementById('result-display');
+            
+            display.innerHTML = '<p style="text-align:center; padding-top:200px; color:#82aaff;">Processing...</p>';
+
+            try {
+                const response = await fetch(`/api/chart-data?ticker=${ticker}&start=${start}&end=${end}`);
+                const data = await response.json();
+
+                if (data.status === "SUCCESS") {
+                    currentChartData = data; // 전역 변수에 저장
+                    renderChart(); // UI와 차트 렌더링
+                } else {
+                    display.innerHTML = `<h2 style="color:#f7768e; text-align:center; padding-top:100px;">❌ Error: ${data.error_msg}</h2>`;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // 일별/누적 전환 시 호출
+        function toggleViewMode() {
+            if (currentChartData) renderChart();
+        }
+
+        function renderChart() {
+            const data = currentChartData;
+            const display = document.getElementById('result-display');
+            const mode = document.querySelector('input[name="view-mode"]:checked').value;
+            
+            // 상단 그리드 HTML 생성 (last_metrics 기반)
+            let gridHtml = '';
+            //for (const [name, value] of Object.entries(data.last_metrics)) {
+            //    const valNum = parseFloat(value);
+            //    const color = valNum > 0 ? '#f7768e' : (valNum < 0 ? '#7aa2f7' : '#9ea9c1');
+            //    gridHtml += `
+            //        <div class="metric-item" style="border-left-color: ${color};">
+            //            <div style="color:#9ea9c1; font-size:11px;">${name}</div>
+            //            <div style="font-size:16px; font-weight:bold; color:${color};">${valNum > 0 ? '+' : ''}${value}억</div>
+            //        </div>`;
+            //}
+
+            display.innerHTML = `
+                <h2 style="color:#73daca; margin-bottom:5px;">✅ ${data.ticker_name}</h2>
+                <p style="font-size:24px; font-weight:bold; margin-bottom:20px;">종가: ${data.current_price}</p>
+                <div class="metrics-grid">${gridHtml}</div>
+                <div id="trend-chart" style="width:100%; height:500px;"></div>
+            `;
+
+            // 모드에 따른 데이터 소스 선택
+            const trendSource = (mode === 'daily') ? data.daily_trend : data.cum_trend;
+            const yTitle = (mode === 'daily') ? '일별 수급 (억 원)' : '누적 수급 (억 원)';
+            const labelSuffix = (mode === 'daily') ? '(일별)' : '(누적)';
+
+            // 2. 상단 그리드 HTML 동적 생성 (현재 선택된 모드의 마지막 값을 추출)
+            for (const name of Object.keys(trendSource)) {
+                const values = trendSource[name];
+                const lastValue = values[values.length - 1]; // 리스트의 가장 마지막 값 추출
+
+                const color = lastValue > 0 ? '#f7768e' : (lastValue < 0 ? '#7aa2f7' : '#9ea9c1');
+
+                gridHtml += `
+                    <div class="metric-item" style="border-left-color: ${color};">
+                        <div style="color:#9ea9c1; font-size:11px;">${name} ${labelSuffix}</div>
+                        <div style="font-size:16px; font-weight:bold; color:${color};">
+                            ${lastValue > 0 ? '+' : ''}${lastValue.toLocaleString()}억
+                        </div>
+                    </div>`;
+            }
+
+            // 3. UI 업데이트 (종가 아래에 그리드 삽입)
+            display.innerHTML = `
+                <h2 style="color:#73daca; margin-bottom:5px;">✅ ${data.ticker_name}</h2>
+                <p style="font-size:24px; font-weight:bold; margin-bottom:20px;">종가: ${data.current_price}</p>
+                <div class="metrics-grid">${gridHtml}</div>
+                <div id="trend-chart" style="width:100%; height:500px;"></div>
+            `;
+
+
+            // 수급 트레이스
+            const traces = Object.keys(trendSource).map(name => ({
+                x: data.dates, y: trendSource[name],
+                mode: 'lines', name: name,
+                line: { shape: 'spline', width: 1.5 }, opacity: 0.7, yaxis: 'y'
+            }));
+
+            // ✅ 주가 트레이스 (네온 레이어링 꼼수)
+            // 1. 광원 효과 (굵고 흐린 선)
+            traces.push({
+                x: data.dates, y: data.prices,
+                name: '주가 광원', type: 'scatter', mode: 'lines',
+                line: { color: '#00FFFF', width: 12, shape: 'spline' },
+                opacity: 0.2, yaxis: 'y2', showlegend: false, hoverinfo: 'none'
+            });
+
+            // 2. 메인 선 (선명한 네온 블루)
+            traces.push({
+                x: data.dates, y: data.prices,
+                name: '주가(하이라이트)', type: 'scatter', mode: 'lines',
+                line: { color: '#00FFFF', width: 4, shape: 'spline', smoothing: 1.3 },
+                yaxis: 'y2'
+            });
+
+            const layout = {
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#eceff4' }, margin: { t: 40, b: 80, l: 60, r: 60 },
+                hovermode: 'x unified',
+                hoverlabel: {
+                    bgcolor: '#1a1b26', bordercolor: '#82aaff',
+                    font: { family: 'Segoe UI', size: 13, color: '#ffffff' },
+                    align: 'left'
+                },
+                xaxis: { type: 'date', gridcolor: '#2e3440', zeroline: false },
+                yaxis: { title: yTitle, gridcolor: '#2e3440', zeroline: false },
+                yaxis2: { 
+                    title: '주가 (원)', overlaying: 'y', side: 'right', 
+                    showgrid: false, zeroline: false, font: { color: '#00FFFF' } 
+                },
+                legend: { orientation: 'h', y: -0.2 }
+            };
+
+            Plotly.newPlot('trend-chart', traces, layout, {responsive: true});
+        }
+
+        function saveExcel() {
+            const ticker = document.getElementById('ticker-input').value;
+            const start = document.getElementById('start-date').value.replace(/-/g, '');
+            const end = document.getElementById('end-date').value.replace(/-/g, '');
+            window.location.href = `/api/save-excel?ticker=${ticker}&start=${start}&end=${end}`;
+        }
+
+        function openTab(evt, tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+            if (tabName === 'flowchart.md') mermaid.init(undefined, ".mermaid");
+        }
+    </script>
+</body>
+</html>
