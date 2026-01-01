@@ -11,6 +11,9 @@ git status
 git diff
 git diff --staged
 git diff <file>
+
+# previous commit vs current working tree
+git difftool -t vimdiff app.py 
 ```
 •	diff 화면 종료: q
 
