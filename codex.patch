@@ -1,8 +1,25 @@
 diff --git a/templates/index.html b/templates/index.html
-index 340ef47e18ef9cc5229518dbbdb8dab39247524a..7b311aa5ce3f5e7d3b9fcc75f2d7266cdaa0bf5e 100644
+index 340ef47e18ef9cc5229518dbbdb8dab39247524a..aa61cb2a545de40ad386a71ba67fcd3cd75c8b51 100644
 --- a/templates/index.html
 +++ b/templates/index.html
-@@ -16,114 +16,168 @@
+@@ -1,129 +1,195 @@
+ <!DOCTYPE html>
+ <html lang="ko">
+ <head>
+     <meta charset="UTF-8">
+     <title>Jemi Manager v5.5 | Neon Intelligence</title>
+     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
++    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
++    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+     <style>
+         body { font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; display: flex; margin: 0; background: #0f111a; color: #eceff4; }
+         
+         /* 사이드바 고정 */
+         .sidebar { 
+             width: 280px; background: #1a1b26; position: fixed; 
+             height: 100vh; border-right: 1px solid #2e3440; 
              padding-top: 20px; overflow-y: auto; z-index: 100;
          }
          .nav-label { padding: 20px 25px 8px; font-size: 11px; color: #4c566a; text-transform: uppercase; font-weight: bold; }
@@ -31,11 +48,16 @@ index 340ef47e18ef9cc5229518dbbdb8dab39247524a..7b311aa5ce3f5e7d3b9fcc75f2d7266c
 +        .subject-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 +        .subject-filters label { font-size: 12px; color: #9ea9c1; display: flex; align-items: center; gap: 6px; background: #0f111a; padding: 6px 10px; border-radius: 999px; border: 1px solid #414868; cursor: pointer; }
 +        .git-commands-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
++        .git-commands-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
++        .git-commands-title { display: flex; flex-direction: column; gap: 4px; }
 +        .git-commands-panel { background: #0f111a; border: 1px solid #414868; padding: 12px; border-radius: 8px; }
 +        .git-commands-editor { width: 100%; height: 320px; margin-top: 8px; background: #0f111a; border: 1px solid #414868; color: #eceff4; padding: 12px; border-radius: 8px; font-family: 'Consolas', monospace; }
 +        .git-commands-preview { margin-top: 8px; min-height: 320px; }
 +        .git-commands-note { color: #9ea9c1; margin-top: 0; }
 +        .git-commands-status { color: #565f89; font-size: 12px; margin-top: 10px; }
++        .git-commands-actions { display: flex; align-items: center; gap: 10px; }
++        .ghost-button { background: transparent; border: 1px solid #73daca; color: #73daca; }
++        .status-pill { background: #0f111a; border: 1px solid #414868; color: #9ea9c1; padding: 6px 12px; border-radius: 999px; font-size: 12px; }
      </style>
  </head>
  <body>
@@ -44,7 +66,8 @@ index 340ef47e18ef9cc5229518dbbdb8dab39247524a..7b311aa5ce3f5e7d3b9fcc75f2d7266c
          <div class="nav-label">Dashboard</div>
          <div class="nav-item active" onclick="openTab(event, 'flowchart.md')">Overall Flow</div>
          <div class="nav-item" onclick="openTab(event, 'realtime-chart')">📈 Neon Intelligence</div>
-+        <div class="nav-item" onclick="openTab(event, 'git-commands')">🧾 Git Commands</div>
++        <div class="nav-label">personal-OS</div>
++        <div class="nav-item" onclick="openTab(event, 'git-commands')">└ 🧾 Git Commands</div>
          
          <div class="nav-label">Strategy MD</div>
          {% for f in md_section_files %}
@@ -90,18 +113,22 @@ index 340ef47e18ef9cc5229518dbbdb8dab39247524a..7b311aa5ce3f5e7d3b9fcc75f2d7266c
 +        <div id="git-commands" class="tab-content">
 +            <h1>GIT COMMANDS LOG</h1>
 +            <div class="card">
-+                <p class="git-commands-note">
-+                    개발 중에 알게 된 Git 명령어를 기록하고 필요할 때마다 확인하세요.
-+                </p>
++                <div class="git-commands-header">
++                    <div class="git-commands-title">
++                        <p class="git-commands-note">
++                            개발 중에 알게 된 Git 명령어를 기록하고 필요할 때마다 확인하세요.
++                        </p>
++                        <span id="git-commands-status" class="status-pill">Ready</span>
++                    </div>
++                    <div class="git-commands-actions">
++                        <button onclick="saveGitCommands()">SAVE</button>
++                        <button class="ghost-button" onclick="loadGitCommands()">REFRESH</button>
++                    </div>
++                </div>
 +                <div class="git-commands-grid">
 +                    <div>
 +                        <label style="color:#82aaff; font-size:12px;">EDIT</label>
 +                        <textarea id="git-commands-editor" class="git-commands-editor"></textarea>
-+                        <div style="margin-top:12px; display:flex; gap:10px;">
-+                            <button onclick="saveGitCommands()">SAVE</button>
-+                            <button onclick="loadGitCommands()" style="background:#73daca;">REFRESH</button>
-+                        </div>
-+                        <p id="git-commands-status" class="git-commands-status"></p>
 +                    </div>
 +                    <div>
 +                        <label style="color:#82aaff; font-size:12px;">PREVIEW</label>
@@ -131,7 +158,8 @@ index 340ef47e18ef9cc5229518dbbdb8dab39247524a..7b311aa5ce3f5e7d3b9fcc75f2d7266c
              const lastMonth = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
              document.getElementById('start-date').value = lastMonth;
              document.getElementById('end-date').value = today;
-             document.querySelectorAll('.markdown-body').forEach(el => { el.innerHTML = marked.parse(el.innerText); });
+-            document.querySelectorAll('.markdown-body').forEach(el => { el.innerHTML = marked.parse(el.innerText); });
++            document.querySelectorAll('.markdown-body').forEach(el => renderMarkdown(el, el.innerText));
 +            document.getElementById('subject-filters').addEventListener('change', (event) => {
 +                const target = event.target;
 +                if (!target.matches('input[data-subject]')) return;
@@ -171,7 +199,7 @@ index 340ef47e18ef9cc5229518dbbdb8dab39247524a..7b311aa5ce3f5e7d3b9fcc75f2d7266c
  
          // 일별/누적 전환 시 호출
          function toggleViewMode() {
-@@ -136,113 +190,193 @@
+@@ -136,113 +202,206 @@
              const mode = document.querySelector('input[name="view-mode"]:checked').value;
              
              // 상단 그리드 HTML 생성 (last_metrics 기반)
@@ -316,13 +344,19 @@ index 340ef47e18ef9cc5229518dbbdb8dab39247524a..7b311aa5ce3f5e7d3b9fcc75f2d7266c
 +            }
 +        }
 +
++        function formatTime(date) {
++            return date.toTimeString().slice(0, 8);
++        }
++
 +        async function loadGitCommands() {
 +            try {
 +                const response = await fetch('/api/git-commands');
 +                const data = await response.json();
 +                if (data.status === 'SUCCESS') {
 +                    const editor = document.getElementById('git-commands-editor');
++                    const status = document.getElementById('git-commands-status');
 +                    editor.value = data.content || '';
++                    status.textContent = `Loaded at ${formatTime(new Date())}`;
 +                    updateGitCommandsPreview();
 +                }
 +            } catch (e) {
@@ -342,7 +376,7 @@ index 340ef47e18ef9cc5229518dbbdb8dab39247524a..7b311aa5ce3f5e7d3b9fcc75f2d7266c
 +                });
 +                const data = await response.json();
 +                if (data.status === 'SUCCESS') {
-+                    status.textContent = 'Saved!';
++                    status.textContent = `Saved at ${formatTime(new Date())}`;
 +                    updateGitCommandsPreview();
 +                } else {
 +                    status.textContent = 'Save failed.';
@@ -356,14 +390,21 @@ index 340ef47e18ef9cc5229518dbbdb8dab39247524a..7b311aa5ce3f5e7d3b9fcc75f2d7266c
 +        function updateGitCommandsPreview() {
 +            const preview = document.getElementById('git-commands-preview');
 +            const editor = document.getElementById('git-commands-editor');
-+            preview.innerHTML = marked.parse(editor.value || '');
-         }
++            renderMarkdown(preview, editor.value || '');
++        }
 +
 +        document.addEventListener('input', (event) => {
 +            if (event.target && event.target.id === 'git-commands-editor') {
 +                updateGitCommandsPreview();
 +            }
 +        });
++
++        function renderMarkdown(element, text) {
++            element.innerHTML = marked.parse(text || '');
++            element.querySelectorAll('pre code').forEach((block) => {
++                hljs.highlightElement(block);
++            });
+         }
      </script>
  </body>
 -</html>
