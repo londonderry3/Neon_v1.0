@@ -5,6 +5,8 @@
     <title>Jemi Manager v5.5 | Neon Intelligence</title>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; display: flex; margin: 0; background: #0f111a; color: #eceff4; }
@@ -38,14 +40,32 @@
 
         .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 30px; }
         .metric-item { background: #24283b; padding: 12px; border-radius: 8px; border-left: 4px solid #414868; }
+        .subject-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .subject-filters label { font-size: 12px; color: #9ea9c1; display: flex; align-items: center; gap: 6px; background: #0f111a; padding: 6px 10px; border-radius: 999px; border: 1px solid #414868; cursor: pointer; }
+        .git-commands-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+        .git-commands-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+        .git-commands-title { display: flex; flex-direction: column; gap: 4px; }
+        .git-commands-panel { background: #0f111a; border: 1px solid #414868; padding: 12px; border-radius: 8px; }
+        .git-commands-editor { width: 100%; height: 320px; margin-top: 8px; background: #0f111a; border: 1px solid #414868; color: #eceff4; padding: 12px; border-radius: 8px; font-family: 'Consolas', monospace; }
+        .git-commands-preview { margin-top: 8px; min-height: 320px; max-height: 320px; overflow: auto; }
+        .git-commands-note { color: #9ea9c1; margin-top: 0; }
+        .git-commands-status { color: #565f89; font-size: 12px; margin-top: 10px; }
+        .git-commands-actions { display: flex; align-items: center; gap: 10px; }
+        .ghost-button { background: transparent; border: 1px solid #73daca; color: #73daca; }
+        .status-pill { background: #0f111a; border: 1px solid #414868; color: #9ea9c1; padding: 6px 12px; border-radius: 999px; font-size: 12px; }
+        .markdown-body pre { background: #0b0d14; border: 1px solid #2e3440; padding: 12px; border-radius: 8px; overflow-x: auto; }
+        .markdown-body code { font-family: 'Consolas', 'Courier New', monospace; color: #c0caf5; }
+        .markdown-body pre code { display: block; }
     </style>
 </head>
 <body>
     <div class="sidebar">
-        <h2 style="text-align:center; color:#82aaff; margin-bottom: 30px;">💎 JEMI v5.5</h2>
+        <h2 style="text-align:center; color:#82aaff; margin-bottom: 30px;">✨ Neon V1.0</h2>
         <div class="nav-label">Dashboard</div>
         <div class="nav-item active" onclick="openTab(event, 'flowchart.md')">Overall Flow</div>
         <div class="nav-item" onclick="openTab(event, 'realtime-chart')">📈 Neon Intelligence</div>
+        <div class="nav-label">personal-OS</div>
+        <div class="nav-item" onclick="openTab(event, 'git-commands')">└ 🧾 Git Commands</div>
         
         <div class="nav-label">Strategy MD</div>
         {% for f in md_section_files %}
@@ -73,6 +93,11 @@
                     </div>
                 </div>
 
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="color:#82aaff; font-size:11px; margin-left:15px;">VISIBLE SUBJECTS</label>
+                    <div id="subject-filters" class="subject-filters"></div>
+                </div>
+
                 <div style="margin-top:18px; display:flex; gap:10px;">
                     <button onclick="refreshChart()">ANALYZE</button>
                     <button onclick="saveExcel()" style="background:#73daca;">SAVE EXCEL</button>
@@ -80,6 +105,34 @@
             </div>
             <div id="result-display" class="card" style="min-height: 500px;">
                 <p style="color:#565f89; text-align:center; padding-top:200px;">조회할 종목과 기간을 선택하세요.</p>
+            </div>
+        </div>
+
+        <div id="git-commands" class="tab-content">
+            <h1>GIT COMMANDS LOG</h1>
+            <div class="card">
+                <div class="git-commands-header">
+                    <div class="git-commands-title">
+                        <p class="git-commands-note">
+                            개발 중에 알게 된 Git 명령어를 기록하고 필요할 때마다 확인하세요.
+                        </p>
+                        <span id="git-commands-status" class="status-pill">Ready</span>
+                    </div>
+                    <div class="git-commands-actions">
+                        <button onclick="saveGitCommands()">SAVE</button>
+                        <button class="ghost-button" onclick="loadGitCommands()">REFRESH</button>
+                    </div>
+                </div>
+                <div class="git-commands-grid">
+                    <div>
+                        <label style="color:#82aaff; font-size:12px;">EDIT</label>
+                        <textarea id="git-commands-editor" class="git-commands-editor"></textarea>
+                    </div>
+                    <div>
+                        <label style="color:#82aaff; font-size:12px;">PREVIEW</label>
+                        <div id="git-commands-preview" class="markdown-body git-commands-panel git-commands-preview"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -93,6 +146,8 @@
 
     <script>
         let currentChartData = null; // 데이터를 메모리에 보관
+        let selectedSubjects = null;
+        let subjectList = [];
 
         mermaid.initialize({ theme: 'dark' });
 
@@ -101,7 +156,21 @@
             const lastMonth = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
             document.getElementById('start-date').value = lastMonth;
             document.getElementById('end-date').value = today;
-            document.querySelectorAll('.markdown-body').forEach(el => { el.innerHTML = marked.parse(el.innerText); });
+            document.querySelectorAll('.markdown-body').forEach(el => renderMarkdown(el, el.innerText));
+            document.getElementById('subject-filters').addEventListener('change', (event) => {
+                const target = event.target;
+                if (!target.matches('input[data-subject]')) return;
+                if (!selectedSubjects) {
+                    selectedSubjects = new Set(subjectList);
+                }
+                if (target.checked) {
+                    selectedSubjects.add(target.dataset.subject);
+                } else {
+                    selectedSubjects.delete(target.dataset.subject);
+                }
+                renderChart();
+            });
+            loadGitCommands();
         };
 
         async function refreshChart() {
@@ -158,9 +227,23 @@
             const trendSource = (mode === 'daily') ? data.daily_trend : data.cum_trend;
             const yTitle = (mode === 'daily') ? '일별 수급 (억 원)' : '누적 수급 (억 원)';
             const labelSuffix = (mode === 'daily') ? '(일별)' : '(누적)';
+            const subjectNames = Object.keys(trendSource);
+
+            if (!selectedSubjects) {
+                selectedSubjects = new Set(subjectNames);
+            }
+
+            if (subjectList.join('|') !== subjectNames.join('|')) {
+                subjectList = [...subjectNames];
+                selectedSubjects = new Set([...selectedSubjects].filter(name => subjectNames.includes(name)));
+                if (selectedSubjects.size === 0) {
+                    selectedSubjects = new Set(subjectNames);
+                }
+                renderSubjectFilters(subjectNames);
+            }
 
             // 2. 상단 그리드 HTML 동적 생성 (현재 선택된 모드의 마지막 값을 추출)
-            for (const name of Object.keys(trendSource)) {
+            for (const name of subjectNames) {
                 const values = trendSource[name];
                 const lastValue = values[values.length - 1]; // 리스트의 가장 마지막 값 추출
 
@@ -185,7 +268,8 @@
 
 
             // 수급 트레이스
-            const traces = Object.keys(trendSource).map(name => ({
+            const activeSubjects = subjectNames.filter(name => selectedSubjects.has(name));
+            const traces = activeSubjects.map(name => ({
                 x: data.dates, y: trendSource[name],
                 mode: 'lines', name: name,
                 line: { shape: 'spline', width: 1.5 }, opacity: 0.7, yaxis: 'y'
@@ -236,12 +320,90 @@
             window.location.href = `/api/save-excel?ticker=${ticker}&start=${start}&end=${end}`;
         }
 
+        function renderSubjectFilters(subjectNames) {
+            const container = document.getElementById('subject-filters');
+            container.innerHTML = '';
+            subjectNames.forEach(name => {
+                const label = document.createElement('label');
+                label.innerHTML = `
+                    <input type="checkbox" data-subject="${name}" ${selectedSubjects.has(name) ? 'checked' : ''}>
+                    ${name}
+                `;
+                container.appendChild(label);
+            });
+        }
+
         function openTab(evt, tabName) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
             evt.currentTarget.classList.add('active');
             if (tabName === 'flowchart.md') mermaid.init(undefined, ".mermaid");
+            if (tabName === 'git-commands') {
+                loadGitCommands();
+            }
+        }
+
+        function formatTime(date) {
+            return date.toTimeString().slice(0, 8);
+        }
+
+        async function loadGitCommands() {
+            try {
+                const response = await fetch('/api/git-commands');
+                const data = await response.json();
+                if (data.status === 'SUCCESS') {
+                    const editor = document.getElementById('git-commands-editor');
+                    const status = document.getElementById('git-commands-status');
+                    editor.value = data.content || '';
+                    status.textContent = `Loaded at ${formatTime(new Date())}`;
+                    updateGitCommandsPreview();
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function saveGitCommands() {
+            const editor = document.getElementById('git-commands-editor');
+            const status = document.getElementById('git-commands-status');
+            status.textContent = 'Saving...';
+            try {
+                const response = await fetch('/api/git-commands', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: editor.value })
+                });
+                const data = await response.json();
+                if (data.status === 'SUCCESS') {
+                    status.textContent = `Saved at ${formatTime(new Date())}`;
+                    updateGitCommandsPreview();
+                } else {
+                    status.textContent = 'Save failed.';
+                }
+            } catch (e) {
+                console.error(e);
+                status.textContent = 'Save failed.';
+            }
+        }
+
+        function updateGitCommandsPreview() {
+            const preview = document.getElementById('git-commands-preview');
+            const editor = document.getElementById('git-commands-editor');
+            renderMarkdown(preview, editor.value || '');
+        }
+
+        document.addEventListener('input', (event) => {
+            if (event.target && event.target.id === 'git-commands-editor') {
+                updateGitCommandsPreview();
+            }
+        });
+
+        function renderMarkdown(element, text) {
+            element.innerHTML = marked.parse(text || '');
+            element.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
         }
     </script>
 </body>
