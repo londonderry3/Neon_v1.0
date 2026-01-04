@@ -29,7 +29,13 @@ def index():
     contents = {f: get_doc_content(f) for f in all_files}
     md_section_files = [
         f for f in all_files
-        if f not in ["flowchart.md", "project_context.md", "update_history.md"]
+        if f not in [
+            "flowchart.md",
+            "project_context.md",
+            "update_history.md",
+            "codex_prompt.md",
+            "todo.md",
+        ]
     ]
     return render_template('index.html', contents=contents, md_section_files=md_section_files)
 
