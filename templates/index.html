@@ -62,8 +62,8 @@
     <div class="sidebar">
         <h2 style="text-align:center; color:#82aaff; margin-bottom: 30px;">✨ JIA V1.0</h2>
         <div class="nav-label">Dashboard</div>
-        <div class="nav-item active" onclick="openTab(event, 'realtime-chart')">📈 Neon Intelligence</div>
-        <div class="nav-item" onclick="openTab(event, 'flowchart.md')">🧭 Overall Flow</div>
+        <div class="nav-item" onclick="openTab(event, 'realtime-chart')">📈 Neon Intelligence</div>
+        <div class="nav-item active" onclick="openTab(event, 'flowchart.md')">🧭 Overall Flow</div>
         <div class="nav-label">personal-OS</div>
         <div class="nav-item" onclick="openTab(event, 'git-commands')">└ 🧾 Git Commands</div>
         <div class="nav-item" onclick="openTab(event, 'update_history.md')">└ 🧩 Update History</div>
@@ -75,12 +75,12 @@
     </div>
 
     <div class="main-content">
-        <div id="flowchart.md" class="tab-content">
+        <div id="flowchart.md" class="tab-content active">
             <h1>STRATEGY FLOW</h1>
             <div class="card"><div class="mermaid">{{ contents['flowchart.md'] }}</div></div>
         </div>
 
-        <div id="realtime-chart" class="tab-content active">
+        <div id="realtime-chart" class="tab-content">
             <h1>NEON MARKET TREND</h1>
             <div class="search-box">
                 <div><label style="color:#82aaff; font-size:11px;">TICKER</label><br><input type="text" id="ticker-input" value="005930" style="width:80px; margin-top:5px;"></div>
