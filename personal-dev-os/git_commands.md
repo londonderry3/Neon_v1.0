@@ -3,6 +3,14 @@
 Solo development quick reference
 Rule: Check → Commit → Recover
 
+---
+### Branch 전환
+```
+git branch -vv # 현재 Branch 확인
+git switch work codex/summarize-code-functionality # Branch 전환
+git pull # Loading
+```
+
 --- 
 ### Status & Diff
 
@@ -86,3 +94,11 @@ Notes
 	•	When confused → git reset --hard HEAD
 
 ---
+---
+
+# Installs
+
+```
+# 260104 - pykrx error로 대체재 확인
+pip install finance-datareader 
+```
