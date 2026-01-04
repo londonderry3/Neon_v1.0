@@ -67,6 +67,17 @@ def git_commands():
         return jsonify({"status": "SUCCESS"})
     return jsonify({"status": "SUCCESS", "content": read_text_file(commands_path)})
 
+@app.route('/api/todo', methods=['GET', 'POST'])
+def todo_items():
+    todo_path = os.path.join(DOCS_DIR, "todo.md")
+    if request.method == 'POST':
+        payload = request.get_json(silent=True) or {}
+        content = payload.get("content", "")
+        with open(todo_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return jsonify({"status": "SUCCESS"})
+    return jsonify({"status": "SUCCESS", "content": read_text_file(todo_path)})
+
 if __name__ == '__main__':
     init_system()
     app.run(host='127.0.0.1', port=5002, debug=True)
