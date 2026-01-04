@@ -136,6 +136,31 @@
             </div>
         </div>
 
+        <div id="todo.md" class="tab-content">
+            <h1>TODO</h1>
+            <div class="card">
+                <div class="git-commands-header">
+                    <div class="git-commands-title">
+                        <p class="git-commands-note">
+                            할 일을 입력하고 Enter를 누르면 날짜와 함께 기록됩니다.
+                        </p>
+                        <span id="todo-status" class="status-pill">Ready</span>
+                    </div>
+                    <div class="git-commands-actions">
+                        <button class="ghost-button" onclick="loadTodo()">REFRESH</button>
+                    </div>
+                </div>
+                <div>
+                    <label style="color:#82aaff; font-size:12px;">INPUT</label>
+                    <input type="text" id="todo-input" placeholder="할 일을 입력하고 Enter" style="width:100%; margin-top:8px; text-align:left;">
+                </div>
+                <div style="margin-top:16px;">
+                    <label style="color:#82aaff; font-size:12px;">PREVIEW</label>
+                    <div id="todo-preview" class="markdown-body git-commands-panel git-commands-preview"></div>
+                </div>
+            </div>
+        </div>
+
         {% for f, content in contents.items() if f != 'flowchart.md' %}
         <div id="{{ f }}" class="tab-content">
             <h1>{{ f.upper() }}</h1>
@@ -148,6 +173,7 @@
         let currentChartData = null; // 데이터를 메모리에 보관
         let selectedSubjects = null;
         let subjectList = [];
+        let todoContent = '';
 
         mermaid.initialize({ theme: 'dark' });
 
@@ -171,6 +197,7 @@
                 renderChart();
             });
             loadGitCommands();
+            loadTodo();
         };
 
         async function refreshChart() {
@@ -342,6 +369,9 @@
             if (tabName === 'git-commands') {
                 loadGitCommands();
             }
+            if (tabName === 'todo.md') {
+                loadTodo();
+            }
         }
 
         function formatTime(date) {
@@ -387,6 +417,60 @@
             }
         }
 
+        async function loadTodo() {
+            try {
+                const response = await fetch('/api/todo');
+                const data = await response.json();
+                if (data.status === 'SUCCESS') {
+                    const status = document.getElementById('todo-status');
+                    todoContent = data.content || '';
+                    updateTodoPreview(todoContent);
+                    status.textContent = `Loaded at ${formatTime(new Date())}`;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function saveTodo(content) {
+            const status = document.getElementById('todo-status');
+            status.textContent = 'Saving...';
+            try {
+                const response = await fetch('/api/todo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+                const data = await response.json();
+                if (data.status === 'SUCCESS') {
+                    status.textContent = `Saved at ${formatTime(new Date())}`;
+                } else {
+                    status.textContent = 'Save failed.';
+                }
+            } catch (e) {
+                console.error(e);
+                status.textContent = 'Save failed.';
+            }
+        }
+
+        function updateTodoPreview(content) {
+            const preview = document.getElementById('todo-preview');
+            renderMarkdown(preview, content || '');
+        }
+
+        function addTodoItem(text) {
+            const trimmed = text.trim();
+            if (!trimmed) return;
+            const date = new Date().toISOString().split('T')[0];
+            const entry = `- [${date}] ${trimmed}`;
+            const base = todoContent.trim() || '# Todo';
+            const separator = base === '# Todo' ? '\n\n' : '\n';
+            const updated = `${base}${separator}${entry}`;
+            todoContent = updated;
+            updateTodoPreview(todoContent);
+            saveTodo(todoContent);
+        }
+
         function updateGitCommandsPreview() {
             const preview = document.getElementById('git-commands-preview');
             const editor = document.getElementById('git-commands-editor');
@@ -396,6 +480,14 @@
         document.addEventListener('input', (event) => {
             if (event.target && event.target.id === 'git-commands-editor') {
                 updateGitCommandsPreview();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.target && event.target.id === 'todo-input' && event.key === 'Enter') {
+                event.preventDefault();
+                addTodoItem(event.target.value);
+                event.target.value = '';
             }
         });
 
