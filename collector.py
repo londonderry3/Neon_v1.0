@@ -1,23 +1,18 @@
 import io
 import pandas as pd
 from datetime import datetime, timedelta
-import FinanceDataReader as fdr
+from pykrx import stock
 
 class DataCollector:
     @staticmethod
     def get_full_analysis(ticker, start_date, end_date):
-        # 1. 데이터 수집 (FinanceDataReader 기반)
-        start = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
-        end = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
-        df_price = fdr.DataReader(ticker, start, end)
+        # 1. 데이터 수집 (시세 및 세부 투자자별 거래대금)
+        df_p = stock.get_market_ohlcv_by_date(start_date, end_date, ticker)
+        df_i = stock.get_market_trading_value_by_date(start_date, end_date, ticker, detail=True)
 
         # 데이터가 아예 없는 경우 방어 로직
-        if df_price.empty:
+        if df_p.empty or df_i.empty:
             return None
-
-        df_p = df_price.rename(columns={'Close': '종가'}).copy()
-        trading_value = (df_price['Close'] * df_price['Volume']) / 1e8
-        df_i = pd.DataFrame({'거래대금': trading_value})
 
         # 2. 🌟 핵심 수술: 두 데이터를 날짜 인덱스 기준으로 'inner join' 합치기
         # 이 과정을 거치면 df_p와 df_i 양쪽에 모두 데이터가 있는 날짜만 남습니다.
@@ -47,7 +42,7 @@ class DataCollector:
         last_metrics = {col: round(float(df_combined[col].iloc[-1]) / 1e8, 2) for col in df_i.columns}
 
         return {
-            "ticker_name": ticker,
+            "ticker_name": stock.get_market_ticker_name(ticker),
             "ticker_code": ticker,
             "current_price": f"{int(df_combined['종가'].iloc[-1]):,} 원",
             "last_metrics": last_metrics,
@@ -60,11 +55,9 @@ class DataCollector:
     @staticmethod
     def generate_excel(ticker, start_date, end_date):
         # 시세와 11개 이상의 투자 주체 데이터 병합 및 엑셀 생성 (v4.8 로직)
-        start = datetime.strptime(start_date, "%Y%m%d").strftime("%Y-%m-%d")
-        end = datetime.strptime(end_date, "%Y%m%d").strftime("%Y-%m-%d")
-        df_price = fdr.DataReader(ticker, start, end)
-        df_p = df_price.rename(columns={'Close': '종가'})
-        df_i = pd.DataFrame({'거래대금': (df_price['Close'] * df_price['Volume'])})
+        df_p = stock.get_market_ohlcv_by_date(start_date, end_date, ticker)
+        df_i = stock.get_market_trading_volume_by_date(start_date, end_date, ticker, detail=True)
+        
         df_final = pd.concat([df_p, df_i], axis=1, join='inner')
         
         output = io.BytesIO()
