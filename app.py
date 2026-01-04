@@ -4,13 +4,23 @@ from collector import DataCollector # 분리된 엔진 불러오기
 
 app = Flask(__name__)
 DOCS_DIR = "docs"
+GIT_COMMANDS_DIR = "personal-dev-os"
+GIT_COMMANDS_FILE = "git_commands.md"
 
 def init_system():
     if not os.path.exists(DOCS_DIR): os.makedirs(DOCS_DIR)
+    if not os.path.exists(GIT_COMMANDS_DIR): os.makedirs(GIT_COMMANDS_DIR)
+    commands_path = os.path.join(GIT_COMMANDS_DIR, GIT_COMMANDS_FILE)
+    if not os.path.exists(commands_path):
+        with open(commands_path, "w", encoding="utf-8") as f:
+            f.write("# Git Commands Log\n\n- ")
     # 기존 초기화 로직 유지 (flowchart.md 등 생성)
 
 def get_doc_content(filename):
     path = os.path.join(DOCS_DIR, filename)
+    return open(path, "r", encoding="utf-8").read() if os.path.exists(path) else ""
+
+def read_text_file(path):
     return open(path, "r", encoding="utf-8").read() if os.path.exists(path) else ""
 
 @app.route('/')
@@ -36,6 +46,17 @@ def save_excel():
     end = request.args.get('end').replace('-', '')
     output = DataCollector.generate_excel(ticker, start, end)
     return send_file(output, as_attachment=True, download_name=f"Data_{ticker}.xlsx")
+
+@app.route('/api/git-commands', methods=['GET', 'POST'])
+def git_commands():
+    commands_path = os.path.join(GIT_COMMANDS_DIR, GIT_COMMANDS_FILE)
+    if request.method == 'POST':
+        payload = request.get_json(silent=True) or {}
+        content = payload.get("content", "")
+        with open(commands_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return jsonify({"status": "SUCCESS"})
+    return jsonify({"status": "SUCCESS", "content": read_text_file(commands_path)})
 
 if __name__ == '__main__':
     init_system()
