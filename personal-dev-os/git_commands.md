@@ -3,6 +3,31 @@
 Solo development quick reference
 Rule: Check → Commit → Recover
 
+<<<<<<< HEAD
+=======
+---
+### Branch 전환 및 Codex flow
+1. git fetch origin으로 코덱스 브랜치 명단 가져오기
+2. git switch <코덱스-브랜치-명>로 이동
+3. VS Code에서 fdr.DataReader 예외 처리 코드 수정
+4. git add . -> git commit -> git push (여기서 코덱스에게 공을 넘김!)
+5. 완벽하면 GitHub에서 main으로 Merge!
+
+
+```
+git branch -vv # 현재 Branch 확인
+git fetch origin # branch list update
+git switch codex/summarize-code-functionality # Branch 전환
+git pull # Loading
+```
+
+1. git fetch origin으로 코덱스 브랜치 명단 가져오기
+git switch <코덱스-브랜치-명>로 이동
+VS Code에서 fdr.DataReader 예외 처리 코드 수정
+git add . -> git commit -> git push (여기서 코덱스에게 공을 넘김!)
+완벽하면 GitHub에서 main으로 Merge!
+
+>>>>>>> codex/summarize-code-functionality-2ktqs0
 --- 
 ### Status & Diff
 
@@ -61,7 +86,11 @@ git reset --hard HEAD
 ---
 
 
+<<<<<<< HEAD
 ###Undo Commits
+=======
+### Undo Commits
+>>>>>>> codex/summarize-code-functionality-2ktqs0
 ```
 git reset --hard HEAD~1   # not pushed
 git revert HEAD           # already pushed
@@ -86,3 +115,14 @@ Notes
 	•	When confused → git reset --hard HEAD
 
 ---
+<<<<<<< HEAD
+=======
+---
+
+# Installs
+
+```
+# 260104 - pykrx error로 대체재 확인
+pip install finance-datareader 
+```
+>>>>>>> codex/summarize-code-functionality-2ktqs0
