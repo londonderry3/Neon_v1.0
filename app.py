@@ -1,26 +1,57 @@
+import json
 import os
+
+import requests
 from flask import Flask, render_template, jsonify, request, send_file
+
 from collector import DataCollector # 분리된 엔진 불러오기
 
 app = Flask(__name__)
 DOCS_DIR = "docs"
-GIT_COMMANDS_DIR = "personal-dev-os"
-GIT_COMMANDS_FILE = "git_commands.md"
+GIST_TOKEN = os.getenv("GIST_TOKEN")
+GIST_ID = os.getenv("GIST_ID")
+GIT_COMMANDS_FILE = os.getenv("GIT_COMMANDS_FILE", "git_commands.md")
+
+
+class GistManager:
+    def __init__(self, token, gist_id):
+        self.token = token
+        self.gist_id = gist_id
+        self.headers = {
+            "Authorization": f"token {self.token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+
+    def update_md(self, filename, content):
+        url = f"https://api.github.com/gists/{self.gist_id}"
+        data = {
+            "files": {
+                filename: {"content": content}
+            }
+        }
+        response = requests.patch(url, headers=self.headers, data=json.dumps(data), timeout=10)
+        return response.status_code == 200
+
+    def get_md(self, filename):
+        url = f"https://api.github.com/gists/{self.gist_id}"
+        response = requests.get(url, headers=self.headers, timeout=10)
+        if response.status_code == 200:
+            files = response.json().get('files', {})
+            return files.get(filename, {}).get('content', "내용 없음")
+        return None
+
+
+def get_gist_manager():
+    if not GIST_TOKEN or not GIST_ID:
+        return None
+    return GistManager(GIST_TOKEN, GIST_ID)
 
 def init_system():
     if not os.path.exists(DOCS_DIR): os.makedirs(DOCS_DIR)
-    if not os.path.exists(GIT_COMMANDS_DIR): os.makedirs(GIT_COMMANDS_DIR)
-    commands_path = os.path.join(GIT_COMMANDS_DIR, GIT_COMMANDS_FILE)
-    if not os.path.exists(commands_path):
-        with open(commands_path, "w", encoding="utf-8") as f:
-            f.write("# Git Commands Log\n\n- ")
     # 기존 초기화 로직 유지 (flowchart.md 등 생성)
 
 def get_doc_content(filename):
     path = os.path.join(DOCS_DIR, filename)
-    return open(path, "r", encoding="utf-8").read() if os.path.exists(path) else ""
-
-def read_text_file(path):
     return open(path, "r", encoding="utf-8").read() if os.path.exists(path) else ""
 
 @app.route('/')
@@ -49,14 +80,19 @@ def save_excel():
 
 @app.route('/api/git-commands', methods=['GET', 'POST'])
 def git_commands():
-    commands_path = os.path.join(GIT_COMMANDS_DIR, GIT_COMMANDS_FILE)
+    gist_manager = get_gist_manager()
+    if gist_manager is None:
+        return jsonify({"status": "ERROR", "error_msg": "Missing GIST_TOKEN or GIST_ID"}), 500
     if request.method == 'POST':
         payload = request.get_json(silent=True) or {}
         content = payload.get("content", "")
-        with open(commands_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        return jsonify({"status": "SUCCESS"})
-    return jsonify({"status": "SUCCESS", "content": read_text_file(commands_path)})
+        if gist_manager.update_md(GIT_COMMANDS_FILE, content):
+            return jsonify({"status": "SUCCESS"})
+        return jsonify({"status": "ERROR", "error_msg": "Failed to update gist"}), 502
+    content = gist_manager.get_md(GIT_COMMANDS_FILE)
+    if content is None:
+        return jsonify({"status": "ERROR", "error_msg": "Failed to fetch gist"}), 502
+    return jsonify({"status": "SUCCESS", "content": content})
 
 if __name__ == '__main__':
     init_system()
