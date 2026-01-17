@@ -66,6 +66,7 @@
         <div class="nav-item active" onclick="openTab(event, 'flowchart.md')">Overall Flow</div>
         <div class="nav-label">personal-OS</div>
         <div class="nav-item" onclick="openTab(event, 'git-commands')">└ 🧾 Git Commands</div>
+        <div class="nav-item" onclick="openTab(event, 'insights')">└ 💡 Insight</div>
         
         <div class="nav-label">Strategy MD</div>
         {% for f in md_section_files %}
@@ -121,8 +122,8 @@
                         <span id="git-commands-status" class="status-pill">Ready</span>
                     </div>
                     <div class="git-commands-actions">
-                        <button id="save-btn" onclick="saveToGist()">Gist에 저장</button>
-                        <button class="ghost-button" onclick="loadGistContent('git_commands.md')">REFRESH</button>
+                        <button id="save-btn" onclick="saveToGist('git-commands')">Gist에 저장</button>
+                        <button class="ghost-button" onclick="loadGistContent('git-commands')">REFRESH</button>
                     </div>
                 </div>
                 <div class="git-commands-grid">
@@ -134,6 +135,26 @@
                         <label style="color:#82aaff; font-size:12px;">PREVIEW</label>
                         <div id="md-preview" class="markdown-body git-commands-panel git-commands-preview"></div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="insights" class="tab-content">
+            <h1>INSIGHT NOTES</h1>
+            <div class="card">
+                <div class="git-commands-header">
+                    <div class="git-commands-title">
+                        <p class="git-commands-note">관찰과 아이디어를 기록하고 Gist의 Insights.md에 누적하세요.</p>
+                        <span id="insights-status" class="status-pill">Ready</span>
+                    </div>
+                    <div class="git-commands-actions">
+                        <button id="insights-save-btn" onclick="saveToGist('insights')">Gist에 저장</button>
+                        <button class="ghost-button" onclick="loadGistContent('insights')">REFRESH</button>
+                    </div>
+                </div>
+                <div>
+                    <label style="color:#82aaff; font-size:12px;">EDIT</label>
+                    <textarea id="insights-editor" class="git-commands-editor"></textarea>
                 </div>
             </div>
         </div>
@@ -172,7 +193,7 @@
                 }
                 renderChart();
             });
-            loadGitCommands();
+            loadGistContent('git-commands');
         };
 
         async function refreshChart() {
@@ -336,6 +357,24 @@
         }
 
         // [중요] openTab 함수 수정
+        const gistTabConfigs = {
+            'git-commands': {
+                endpoint: '/api/git-commands',
+                editorId: 'md-editor',
+                previewId: 'md-preview',
+                statusId: 'git-commands-status',
+                saveBtnId: 'save-btn',
+                renderPreview: true
+            },
+            'insights': {
+                endpoint: '/api/insights',
+                editorId: 'insights-editor',
+                statusId: 'insights-status',
+                saveBtnId: 'insights-save-btn',
+                renderPreview: false
+            }
+        };
+
         async function openTab(evt, tabName) {
             // 모든 탭 숨기기
             document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
@@ -347,35 +386,38 @@
             const target = document.getElementById(tabName);
             if(target) target.style.display = 'block';
 
-            // .md로 끝나거나 git-commands 탭일 때만 Gist 호출
-            if (tabName === 'git-commands' || tabName.endsWith('.md')) {
-                await loadGistContent();
+            if (gistTabConfigs[tabName]) {
+                await loadGistContent(tabName);
             } else if (tabName === 'flowchart.md') {
                 mermaid.init(undefined, ".mermaid");
             }
         }
 
         // 2. Gist로부터 데이터 Fetch
-        async function loadGistContent(filename) {
-            const editor = document.getElementById('md-editor');
-            const preview = document.getElementById('md-preview');
-            const status = document.getElementById('git-commands-status');
+        async function loadGistContent(tabName) {
+            const config = gistTabConfigs[tabName];
+            if (!config) return;
+            const editor = document.getElementById(config.editorId);
+            const preview = config.previewId ? document.getElementById(config.previewId) : null;
+            const status = document.getElementById(config.statusId);
 
-            if(!editor) return;
+            if (!editor) return;
             editor.value = "Gist 서버에서 데이터를 동기화 중...";
-            if(status) status.innerText = "Syncing...";
+            if (status) status.innerText = "Syncing...";
 
             try {
-                const response = await fetch(`/api/git-commands`);
+                const response = await fetch(config.endpoint);
                 const data = await response.json();
 
                 if (data.status === "SUCCESS") {
                     editor.value = data.content;
-                    renderMarkdown(preview, data.content);
-                    if(status) status.innerText = "Connected";
+                    if (config.renderPreview && preview) {
+                        renderMarkdown(preview, data.content);
+                    }
+                    if (status) status.innerText = "Connected";
                 } else {
                     editor.value = "로드 실패: " + (data.error_msg || "Unknown");
-                    if(status) status.innerText = "Error";
+                    if (status) status.innerText = "Error";
                 }
             } catch (err) {
                 console.error("Fetch Error:", err);
@@ -386,10 +428,13 @@
 
 
         // 3. Gist에 데이터 저장 (POST)
-        async function saveToGist() {
-            const content = document.getElementById('md-editor').value;
-            const preview = document.getElementById('md-preview');
-            const saveBtn = document.getElementById('save-btn');
+        async function saveToGist(tabName) {
+            const config = gistTabConfigs[tabName];
+            if (!config) return;
+            const editor = document.getElementById(config.editorId);
+            const preview = config.previewId ? document.getElementById(config.previewId) : null;
+            const saveBtn = document.getElementById(config.saveBtnId);
+            const content = editor ? editor.value : "";
 
             if (!confirm('Gist에 저장하시겠습니까?')) return;
 
@@ -397,7 +442,7 @@
             saveBtn.disabled = true;
 
             try {
-                const response = await fetch('/api/git-commands', {
+                const response = await fetch(config.endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content: content })
@@ -405,7 +450,9 @@
 
                 const result = await response.json();
                 if (result.status === "SUCCESS") {
-                    renderMarkdown(preview, content);
+                    if (config.renderPreview && preview) {
+                        renderMarkdown(preview, content);
+                    }
                     alert('GitHub Gist 동기화 완료!');
                 } else {
                     alert('저장 실패: ' + result.error_msg);
