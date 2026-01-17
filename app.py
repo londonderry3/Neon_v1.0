@@ -16,6 +16,7 @@ GIST_ID = os.getenv("GIST_ID")
 print("DBG : ",GIST_ID)
 print("DBG : ",GIST_TOKEN)
 GIT_COMMANDS_FILE = os.getenv("GIT_COMMANDS_FILE", "git_commands.md")
+INSIGHTS_FILE = os.getenv("INSIGHTS_FILE", "Insights.md")
 
 
 class GistManager:
@@ -95,6 +96,22 @@ def git_commands():
             return jsonify({"status": "SUCCESS"})
         return jsonify({"status": "ERROR", "error_msg": "Failed to update gist"}), 502
     content = gist_manager.get_md(GIT_COMMANDS_FILE)
+    if content is None:
+        return jsonify({"status": "ERROR", "error_msg": "Failed to fetch gist"}), 502
+    return jsonify({"status": "SUCCESS", "content": content})
+
+@app.route('/api/insights', methods=['GET', 'POST'])
+def insights():
+    gist_manager = get_gist_manager()
+    if gist_manager is None:
+        return jsonify({"status": "ERROR", "error_msg": "Missing GIST_TOKEN or GIST_ID"}), 500
+    if request.method == 'POST':
+        payload = request.get_json(silent=True) or {}
+        content = payload.get("content", "")
+        if gist_manager.update_md(INSIGHTS_FILE, content):
+            return jsonify({"status": "SUCCESS"})
+        return jsonify({"status": "ERROR", "error_msg": "Failed to update gist"}), 502
+    content = gist_manager.get_md(INSIGHTS_FILE)
     if content is None:
         return jsonify({"status": "ERROR", "error_msg": "Failed to fetch gist"}), 502
     return jsonify({"status": "SUCCESS", "content": content})
