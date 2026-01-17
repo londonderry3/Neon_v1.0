@@ -46,8 +46,8 @@
         .git-commands-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
         .git-commands-title { display: flex; flex-direction: column; gap: 4px; }
         .git-commands-panel { background: #0f111a; border: 1px solid #414868; padding: 12px; border-radius: 8px; }
-        .git-commands-editor { width: 100%; height: 320px; margin-top: 8px; background: #0f111a; border: 1px solid #414868; color: #eceff4; padding: 12px; border-radius: 8px; font-family: 'Consolas', monospace; }
-        .git-commands-preview { margin-top: 8px; min-height: 320px; max-height: 320px; overflow: auto; }
+        .git-commands-editor { width: 100%; height: 640px; margin-top: 8px; background: #0f111a; border: 1px solid #414868; color: #eceff4; padding: 12px; border-radius: 8px; font-family: 'Consolas', monospace; }
+        .git-commands-preview { margin-top: 8px; min-height: 640px; max-height: 640px; overflow: auto; }
         .git-commands-note { color: #9ea9c1; margin-top: 0; }
         .git-commands-status { color: #565f89; font-size: 12px; margin-top: 10px; }
         .git-commands-actions { display: flex; align-items: center; gap: 10px; }
@@ -115,27 +115,24 @@
 
         <div id="git-commands" class="tab-content">
             <h1>GIT COMMANDS LOG</h1>
-            <div class="card">
-                <div class="git-commands-header">
+            <div class="card" id="md-editor-container"> <div class="git-commands-header">
                     <div class="git-commands-title">
-                        <p class="git-commands-note">
-                            개발 중에 알게 된 Git 명령어를 기록하고 필요할 때마다 확인하세요.
-                        </p>
+                        <p class="git-commands-note">개발 중에 알게 된 Git 명령어를 기록하고 Gist와 동기화하세요.</p>
                         <span id="git-commands-status" class="status-pill">Ready</span>
                     </div>
                     <div class="git-commands-actions">
-                        <button onclick="saveGitCommands()">SAVE</button>
-                        <button class="ghost-button" onclick="loadGitCommands()">REFRESH</button>
+                        <button id="save-btn" onclick="saveToGist()">Gist에 저장</button>
+                        <button class="ghost-button" onclick="loadGistContent('git_commands.md')">REFRESH</button>
                     </div>
                 </div>
                 <div class="git-commands-grid">
                     <div>
                         <label style="color:#82aaff; font-size:12px;">EDIT</label>
-                        <textarea id="git-commands-editor" class="git-commands-editor"></textarea>
+                        <textarea id="md-editor" class="git-commands-editor" oninput="renderMarkdown(document.getElementById('md-preview'), this.value)"></textarea>
                     </div>
                     <div>
                         <label style="color:#82aaff; font-size:12px;">PREVIEW</label>
-                        <div id="git-commands-preview" class="markdown-body git-commands-panel git-commands-preview"></div>
+                        <div id="md-preview" class="markdown-body git-commands-panel git-commands-preview"></div>
                     </div>
                 </div>
             </div>
@@ -338,78 +335,107 @@
             });
         }
 
-        function openTab(evt, tabName) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        // [중요] openTab 함수 수정
+        async function openTab(evt, tabName) {
+            // 모든 탭 숨기기
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
+
             evt.currentTarget.classList.add('active');
-            if (tabName === 'flowchart.md') mermaid.init(undefined, ".mermaid");
-            if (tabName === 'git-commands') {
-                loadGitCommands();
+
+            // Gist 연동 탭 처리
+            const target = document.getElementById(tabName);
+            if(target) target.style.display = 'block';
+
+            // .md로 끝나거나 git-commands 탭일 때만 Gist 호출
+            if (tabName === 'git-commands' || tabName.endsWith('.md')) {
+                await loadGistContent();
+            } else if (tabName === 'flowchart.md') {
+                mermaid.init(undefined, ".mermaid");
             }
         }
 
-        function formatTime(date) {
-            return date.toTimeString().slice(0, 8);
-        }
-
-        async function loadGitCommands() {
-            try {
-                const response = await fetch('/api/git-commands');
-                const data = await response.json();
-                if (data.status === 'SUCCESS') {
-                    const editor = document.getElementById('git-commands-editor');
-                    const status = document.getElementById('git-commands-status');
-                    editor.value = data.content || '';
-                    status.textContent = `Loaded at ${formatTime(new Date())}`;
-                    updateGitCommandsPreview();
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        async function saveGitCommands() {
-            const editor = document.getElementById('git-commands-editor');
+        // 2. Gist로부터 데이터 Fetch
+        async function loadGistContent(filename) {
+            const editor = document.getElementById('md-editor');
+            const preview = document.getElementById('md-preview');
             const status = document.getElementById('git-commands-status');
-            status.textContent = 'Saving...';
+
+            if(!editor) return;
+            editor.value = "Gist 서버에서 데이터를 동기화 중...";
+            if(status) status.innerText = "Syncing...";
+
+            try {
+                const response = await fetch(`/api/git-commands`);
+                const data = await response.json();
+
+                if (data.status === "SUCCESS") {
+                    editor.value = data.content;
+                    renderMarkdown(preview, data.content);
+                    if(status) status.innerText = "Connected";
+                } else {
+                    editor.value = "로드 실패: " + (data.error_msg || "Unknown");
+                    if(status) status.innerText = "Error";
+                }
+            } catch (err) {
+                console.error("Fetch Error:", err);
+                editor.value = "서버 통신 에러";
+            }
+        }
+
+
+
+        // 3. Gist에 데이터 저장 (POST)
+        async function saveToGist() {
+            const content = document.getElementById('md-editor').value;
+            const preview = document.getElementById('md-preview');
+            const saveBtn = document.getElementById('save-btn');
+
+            if (!confirm('Gist에 저장하시겠습니까?')) return;
+
+            saveBtn.innerText = '저장 중...';
+            saveBtn.disabled = true;
+
             try {
                 const response = await fetch('/api/git-commands', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: editor.value })
+                    body: JSON.stringify({ content: content })
                 });
-                const data = await response.json();
-                if (data.status === 'SUCCESS') {
-                    status.textContent = `Saved at ${formatTime(new Date())}`;
-                    updateGitCommandsPreview();
+
+                const result = await response.json();
+                if (result.status === "SUCCESS") {
+                    renderMarkdown(preview, content);
+                    alert('GitHub Gist 동기화 완료!');
                 } else {
-                    status.textContent = 'Save failed.';
+                    alert('저장 실패: ' + result.error_msg);
                 }
-            } catch (e) {
-                console.error(e);
-                status.textContent = 'Save failed.';
+            } catch (err) {
+                alert('네트워크 에러');
+            } finally {
+                saveBtn.innerText = 'Gist에 저장';
+                saveBtn.disabled = false;
             }
         }
 
-        function updateGitCommandsPreview() {
-            const preview = document.getElementById('git-commands-preview');
-            const editor = document.getElementById('git-commands-editor');
-            renderMarkdown(preview, editor.value || '');
-        }
-
-        document.addEventListener('input', (event) => {
-            if (event.target && event.target.id === 'git-commands-editor') {
-                updateGitCommandsPreview();
-            }
-        });
-
+        // 마크다운 렌더링 엔진 보완
         function renderMarkdown(element, text) {
+            if (!element) return;
+
+            // 1. 기본 마크다운 변환
             element.innerHTML = marked.parse(text || '');
+
+            // 2. 코드 하이라이팅 적용 (hljs가 로드되어 있을 경우)
             element.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block);
+                if (typeof hljs !== 'undefined') hljs.highlightElement(block);
             });
+
+            // 3. Mermaid 다이어그램이 있다면 재렌더링
+            if (text.includes('```mermaid') && typeof mermaid !== 'undefined') {
+                mermaid.init(undefined, ".mermaid");
+            }
         }
+
     </script>
 </body>
 </html>
