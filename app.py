@@ -4,12 +4,17 @@ import os
 import requests
 from flask import Flask, render_template, jsonify, request, send_file
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from collector import DataCollector # 분리된 엔진 불러오기
 
 app = Flask(__name__)
 DOCS_DIR = "docs"
 GIST_TOKEN = os.getenv("GIST_TOKEN")
 GIST_ID = os.getenv("GIST_ID")
+print("DBG : ",GIST_ID)
+print("DBG : ",GIST_TOKEN)
 GIT_COMMANDS_FILE = os.getenv("GIT_COMMANDS_FILE", "git_commands.md")
 
 
