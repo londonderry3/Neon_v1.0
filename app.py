@@ -4,8 +4,12 @@ import os
 import requests
 from flask import Flask, render_template, jsonify, request, send_file
 
-from dotenv import load_dotenv
-load_dotenv()
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:
+    load_dotenv = None
+if load_dotenv is not None:
+    load_dotenv()
 
 from collector import DataCollector # 분리된 엔진 불러오기
 
@@ -77,7 +81,7 @@ def chart_data():
         print(f"DEBUG: Ticker={ticker}, Start={start}, End={end}")
         return jsonify({"status": "SUCCESS", **data})
     except Exception as exc:
-        print(f"KRX API ERROR: {exc}")
+        print(f"KIS API ERROR: {exc}")
         return jsonify({"status": "ERROR", "error_msg": str(exc)})
 
 @app.route('/api/save-excel')
@@ -89,7 +93,7 @@ def save_excel():
         output = DataCollector.generate_excel(ticker, start, end)
         return send_file(output, as_attachment=True, download_name=f"Data_{ticker}.xlsx")
     except Exception as exc:
-        print(f"KRX API EXCEL ERROR: {exc}")
+        print(f"KIS API EXCEL ERROR: {exc}")
         return jsonify({"status": "ERROR", "error_msg": str(exc)}), 502
 
 @app.route('/api/git-commands', methods=['GET', 'POST'])

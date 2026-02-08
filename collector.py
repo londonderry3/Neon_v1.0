@@ -1,6 +1,7 @@
 import io
 import os
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -8,210 +9,49 @@ import pandas as pd
 import requests
 
 
-class KRXApiClient:
-    DATE_COLUMNS = ("TRD_DD", "TRD_DE", "TDD", "BASE_DT", "TRADE_DATE")
-    OHLCV_COLUMN_MAP = {
-        "OPNPRC": "시가",
-        "OPEN_PRC": "시가",
-        "HGPRC": "고가",
-        "HIGH_PRC": "고가",
-        "LWPRC": "저가",
-        "LOW_PRC": "저가",
-        "CLSPRC": "종가",
-        "CLOSE_PRC": "종가",
-        "TRDVOL": "거래량",
-        "VOLUME": "거래량",
-    }
-    INVESTOR_COLUMN_MAP = {
-        "INDV": "개인",
-        "INDV_SUM": "개인",
-        "FORN": "외국인합계",
-        "FRGN": "외국인합계",
-        "FOREIGN": "외국인합계",
-        "INST": "기관합계",
-        "INST_SUM": "기관합계",
-        "ORG": "기관합계",
-    }
+def _load_dotenv_if_present():
+    try:
+        from dotenv import load_dotenv  # type: ignore
+    except Exception:
+        return
+    env_path = Path(__file__).resolve().parent / ".env"
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
 
-    def __init__(self):
-        self._load_dotenv_if_present()
-        self.api_key = os.getenv("KRX_API_KEY")
-        self.ohlcv_url = os.getenv(
-            "KRX_OHLCV_URL",
-            "https://openapi.krx.co.kr/contents/OPP/ODM/02/03010000/ODM03010000_list.jsp",
-        )
-        self.investor_url = os.getenv(
-            "KRX_INVESTOR_URL",
-            "https://openapi.krx.co.kr/contents/OPP/OTD/01/01010100/OTD01010100_list.jsp",
-        )
-        self.debug = os.getenv("KRX_API_DEBUG", "").strip().lower() in ("1", "true", "yes", "y", "on")
-        self.session = requests.Session()
-        self.last_error = None
 
-    @staticmethod
-    def _load_dotenv_if_present():
-        try:
-            from dotenv import load_dotenv  # type: ignore
-        except Exception:
-            return
-        env_path = Path(__file__).resolve().parent / ".env"
-        if env_path.exists():
-            load_dotenv(dotenv_path=env_path)
+def _truncate_text(text: str, limit: int = 300) -> str:
+    if not text:
+        return ""
+    text = " ".join(text.replace("\r", " ").replace("\n", " ").split())
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "…"
 
-    def _debug(self, message: str):
-        if self.debug:
-            print(f"[KRX_API_DEBUG] {message}")
 
-    @staticmethod
-    def _truncate_text(text: str, limit: int = 300) -> str:
-        if not text:
-            return ""
-        text = " ".join(text.replace("\r", " ").replace("\n", " ").split())
-        if len(text) <= limit:
-            return text
-        return text[:limit] + "…"
+def _format_last_error(err) -> str:
+    if not err:
+        return ""
+    if isinstance(err, str):
+        return err
+    if isinstance(err, dict):
+        parts = []
+        for key in ("status", "respCode", "respMsg", "url"):
+            if err.get(key) not in (None, ""):
+                parts.append(f"{key}={err.get(key)}")
+        if err.get("body"):
+            parts.append(f"body={err.get('body')}")
+        return " | ".join(parts)
+    return str(err)
 
-    @staticmethod
-    def _format_last_error(err) -> str:
-        if not err:
-            return ""
-        if isinstance(err, str):
-            return err
-        if isinstance(err, dict):
-            parts = []
-            for key in ("status", "respCode", "respMsg", "url"):
-                if err.get(key) not in (None, ""):
-                    parts.append(f"{key}={err.get(key)}")
-            if err.get("body"):
-                parts.append(f"body={err.get('body')}")
-            return " | ".join(parts)
-        return str(err)
 
-    def _request_json(self, url, params, *, method: str = "GET"):
-        if not self.api_key:
-            self.last_error = "Missing KRX_API_KEY (env)."
-            return None
-
-        self.last_error = None
-        payload = {"AUTH_KEY": self.api_key, **params}
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/121.0.0.0 Safari/537.36"
-            ),
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "X-Requested-With": "XMLHttpRequest",
-            # KRX OPEN API 안내: Request 헤더 AUTH_KEY
-            "AUTH_KEY": self.api_key,
-            "Referer": "https://openapi.krx.co.kr/",
-            "Origin": "https://openapi.krx.co.kr",
-        }
-
-        try:
-            if method.upper() == "POST":
-                response = self.session.post(url, data=payload, headers=headers, timeout=15)
-            else:
-                response = self.session.get(url, params=payload, headers=headers, timeout=15)
-        except requests.RequestException as exc:
-            self.last_error = {"url": url, "status": None, "respCode": None, "respMsg": str(exc), "body": None}
-            self._debug(f"request failed: {self._format_last_error(self.last_error)}")
-            return None
-
-        if response.status_code != 200:
-            self.last_error = {
-                "url": url,
-                "status": response.status_code,
-                "respCode": None,
-                "respMsg": None,
-                "body": self._truncate_text(response.text),
-            }
-            self._debug(f"non-200: {self._format_last_error(self.last_error)}")
-            return None
-        try:
-            data = response.json()
-            if isinstance(data, dict) and ("respCode" in data or "respMsg" in data):
-                # Data Marketplace Open API 스타일 에러
-                code = data.get("respCode")
-                msg = data.get("respMsg")
-                if code and code != "000":
-                    self.last_error = {"url": url, "status": 200, "respCode": code, "respMsg": msg, "body": None}
-                    self._debug(f"api error: {self._format_last_error(self.last_error)}")
-                    return None
-            return data
-        except ValueError:
-            self.last_error = {
-                "url": url,
-                "status": 200,
-                "respCode": None,
-                "respMsg": "Non-JSON response",
-                "body": self._truncate_text(response.text),
-            }
-            self._debug(f"json parse failed: {self._format_last_error(self.last_error)}")
-            return None
-
-    @staticmethod
-    def _extract_records(payload):
-        if not payload:
-            return []
-        if isinstance(payload, list):
-            return payload
-        if isinstance(payload, dict):
-            for value in payload.values():
-                if isinstance(value, list) and value and isinstance(value[0], dict):
-                    return value
-        return []
-
-    def _normalize_dataframe(self, records, column_map, date_columns):
-        if not records:
-            return pd.DataFrame()
-        df = pd.DataFrame(records)
-        date_column = next((col for col in date_columns if col in df.columns), None)
-        if not date_column:
-            return pd.DataFrame()
-        df[date_column] = pd.to_datetime(df[date_column])
-        df.set_index(date_column, inplace=True)
-        renamed = {col: column_map.get(col, col) for col in df.columns}
-        df.rename(columns=renamed, inplace=True)
-        numeric_cols = [col for col in df.columns if col != date_column]
-        df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
-        return df
-
-    def get_ohlcv_by_date(self, ticker, start_date, end_date):
-        params = {
-            "isuCd": ticker,
-            "strtDd": start_date,
-            "endDd": end_date,
-        }
-        payload = self._request_json(self.ohlcv_url, params)
-        if payload is None and self.last_error:
-            # 일부 엔드포인트는 POST만 허용하는 경우가 있어 fallback
-            payload = self._request_json(self.ohlcv_url, params, method="POST")
-        records = self._extract_records(payload)
-        df = self._normalize_dataframe(records, self.OHLCV_COLUMN_MAP, self.DATE_COLUMNS)
-        if df.empty:
-            return df
-        for required in ("시가", "고가", "저가", "종가", "거래량"):
-            if required not in df.columns:
-                df[required] = 0
-        return df
-
-    def get_investor_trading_by_date(self, ticker, start_date, end_date, share="2"):
-        params = {
-            "isuCd": ticker,
-            "strtDd": start_date,
-            "endDd": end_date,
-            "share": share,
-            "money": "1",
-        }
-        payload = self._request_json(self.investor_url, params)
-        if payload is None and self.last_error:
-            payload = self._request_json(self.investor_url, params, method="POST")
-        records = self._extract_records(payload)
-        df = self._normalize_dataframe(records, self.INVESTOR_COLUMN_MAP, self.DATE_COLUMNS)
-        if df.empty:
-            return df
-        return df
+@dataclass(frozen=True)
+class KisConfig:
+    env: str
+    base_url: str
+    app_key: str
+    app_secret: str
+    debug: bool
+    request_delay_sec: float
 
 
 class KisApiClient:
@@ -230,26 +70,41 @@ class KisApiClient:
         "stck_clpr": "종가",
         "acml_vol": "거래량",
     }
-    INVESTOR_COLUMN_MAP = {
+    INVESTOR_COLUMN_MAP_AMOUNT = {
         "prsn_ntby_tr_pbmn": "개인",
         "frgn_ntby_tr_pbmn": "외국인합계",
         "orgn_ntby_tr_pbmn": "기관합계",
     }
+    INVESTOR_COLUMN_MAP_QTY = {
+        "prsn_ntby_tr_qty": "개인",
+        "frgn_ntby_tr_qty": "외국인합계",
+        "orgn_ntby_tr_qty": "기관합계",
+    }
 
     def __init__(self):
-        KRXApiClient._load_dotenv_if_present()
-        self.env = os.getenv("KIS_ENV", "demo").strip().lower()  # demo | real
-        self.base_url = os.getenv("KIS_BASE_URL", "").strip()
-        if not self.base_url:
-            self.base_url = (
+        _load_dotenv_if_present()
+        env = os.getenv("KIS_ENV", "demo").strip().lower()  # demo | real
+        base_url = os.getenv("KIS_BASE_URL", "").strip()
+        if not base_url:
+            base_url = (
                 "https://openapivts.koreainvestment.com:29443"
-                if self.env == "demo"
+                if env == "demo"
                 else "https://openapi.koreainvestment.com:9443"
             )
 
-        self.app_key = os.getenv("KIS_APP_KEY")
-        self.app_secret = os.getenv("KIS_APP_SECRET")
-        self.debug = os.getenv("KIS_API_DEBUG", "").strip().lower() in ("1", "true", "yes", "y", "on")
+        app_key = (os.getenv("KIS_APP_KEY") or "").strip()
+        app_secret = (os.getenv("KIS_APP_SECRET") or "").strip()
+        debug = os.getenv("KIS_API_DEBUG", "").strip().lower() in ("1", "true", "yes", "y", "on")
+        request_delay_sec = float(os.getenv("KIS_REQUEST_DELAY_SEC", "0") or "0")
+
+        self.config = KisConfig(
+            env=env,
+            base_url=base_url,
+            app_key=app_key,
+            app_secret=app_secret,
+            debug=debug,
+            request_delay_sec=max(0.0, request_delay_sec),
+        )
 
         self.session = requests.Session()
         self._access_token = None
@@ -257,22 +112,22 @@ class KisApiClient:
         self.last_error = None
 
     def _debug(self, message: str):
-        if self.debug:
+        if self.config.debug:
             print(f"[KIS_API_DEBUG] {message}")
 
     def _ensure_token(self):
         if self._access_token and time.time() < (self._access_token_expire_ts - 30):
             return
 
-        if not self.app_key or not self.app_secret:
+        if not self.config.app_key or not self.config.app_secret:
             self.last_error = "Missing KIS_APP_KEY/KIS_APP_SECRET (env)."
             raise RuntimeError(self.last_error)
 
-        url = f"{self.base_url}/oauth2/tokenP"
+        url = f"{self.config.base_url}/oauth2/tokenP"
         payload = {
             "grant_type": "client_credentials",
-            "appkey": self.app_key,
-            "appsecret": self.app_secret,
+            "appkey": self.config.app_key,
+            "appsecret": self.config.app_secret,
         }
         headers = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "Neon/1.0"}
 
@@ -284,7 +139,7 @@ class KisApiClient:
 
         if res.status_code != 200:
             self.last_error = (
-                f"Token request non-200: status={res.status_code} body={KRXApiClient._truncate_text(res.text)}"
+                f"Token request non-200: status={res.status_code} body={_truncate_text(res.text)}"
             )
             raise RuntimeError(self.last_error)
 
@@ -311,13 +166,13 @@ class KisApiClient:
 
     def _request_json(self, path: str, tr_id: str, params: dict):
         self._ensure_token()
-        url = f"{self.base_url}{path}"
+        url = f"{self.config.base_url}{path}"
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
             "authorization": f"Bearer {self._access_token}",
-            "appkey": self.app_key,
-            "appsecret": self.app_secret,
+            "appkey": self.config.app_key,
+            "appsecret": self.config.app_secret,
             "tr_id": tr_id,
             "custtype": "P",
             "User-Agent": "Neon/1.0",
@@ -332,7 +187,7 @@ class KisApiClient:
 
         if res.status_code != 200:
             self.last_error = (
-                f"non-200: status={res.status_code} url={url} body={KRXApiClient._truncate_text(res.text)}"
+                f"non-200: status={res.status_code} url={url} body={_truncate_text(res.text)}"
             )
             self._debug(self.last_error)
             return None
@@ -340,7 +195,7 @@ class KisApiClient:
         try:
             data = res.json()
         except ValueError:
-            self.last_error = f"Non-JSON response: url={url} body={KRXApiClient._truncate_text(res.text)}"
+            self.last_error = f"Non-JSON response: url={url} body={_truncate_text(res.text)}"
             self._debug(self.last_error)
             return None
 
@@ -350,45 +205,95 @@ class KisApiClient:
             self._debug(self.last_error)
             return None
 
+        if self.config.request_delay_sec > 0:
+            time.sleep(self.config.request_delay_sec)
+
         return data
 
+    @staticmethod
+    def _normalize_yyyymmdd(date_str: str) -> str:
+        if not date_str:
+            return ""
+        date_str = date_str.strip().replace("-", "")
+        return date_str
+
     def get_ohlcv_by_date(self, ticker: str, start_date: str, end_date: str):
+        start_date = self._normalize_yyyymmdd(start_date)
+        end_date = self._normalize_yyyymmdd(end_date)
+        if not start_date or not end_date:
+            self.last_error = "Missing start_date/end_date (expected YYYYMMDD)."
+            return pd.DataFrame()
+
         path = "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
         tr_id = "FHKST03010100"
-        params = {
-            "FID_COND_MRKT_DIV_CODE": "J",
-            "FID_INPUT_ISCD": ticker,
-            "FID_INPUT_DATE_1": start_date,
-            "FID_INPUT_DATE_2": end_date,
-            "FID_PERIOD_DIV_CODE": "D",
-            "FID_ORG_ADJ_PRC": "1",
-        }
-        payload = self._request_json(path, tr_id, params)
-        if not payload:
+
+        parts = []
+        cursor_end = end_date
+        max_iters = int(os.getenv("KIS_OHLCV_MAX_ITERS", "50") or "50")
+
+        for _ in range(max_iters):
+            params = {
+                "FID_COND_MRKT_DIV_CODE": "J",
+                "FID_INPUT_ISCD": ticker,
+                "FID_INPUT_DATE_1": start_date,
+                "FID_INPUT_DATE_2": cursor_end,
+                "FID_PERIOD_DIV_CODE": "D",
+                "FID_ORG_ADJ_PRC": "1",
+            }
+            payload = self._request_json(path, tr_id, params)
+            if not payload:
+                break
+
+            records = payload.get("output2") or []
+            if not isinstance(records, list) or not records:
+                break
+
+            df = pd.DataFrame(records)
+            if "stck_bsop_date" not in df.columns:
+                break
+
+            keep_cols = [c for c in ("stck_bsop_date", *self.OHLCV_COLUMN_MAP.keys()) if c in df.columns]
+            df = df[keep_cols].copy()
+            df["stck_bsop_date"] = pd.to_datetime(df["stck_bsop_date"], format="%Y%m%d", errors="coerce")
+            df.dropna(subset=["stck_bsop_date"], inplace=True)
+            if df.empty:
+                break
+
+            df.set_index("stck_bsop_date", inplace=True)
+            df.rename(columns=self.OHLCV_COLUMN_MAP, inplace=True)
+            for col in ("시가", "고가", "저가", "종가", "거래량"):
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors="coerce")
+            df.sort_index(inplace=True)
+            parts.append(df)
+
+            earliest = df.index.min()
+            if earliest is pd.NaT:
+                break
+
+            start_dt = pd.to_datetime(start_date, format="%Y%m%d", errors="coerce")
+            if pd.isna(start_dt) or earliest <= start_dt:
+                break
+
+            cursor_end_dt = earliest - pd.Timedelta(days=1)
+            cursor_end = cursor_end_dt.strftime("%Y%m%d")
+
+        if not parts:
             return pd.DataFrame()
 
-        records = payload.get("output2") or []
-        if not isinstance(records, list) or not records:
-            return pd.DataFrame()
-
-        df = pd.DataFrame(records)
-        if "stck_bsop_date" not in df.columns:
-            return pd.DataFrame()
-
-        keep_cols = [c for c in ("stck_bsop_date", *self.OHLCV_COLUMN_MAP.keys()) if c in df.columns]
-        df = df[keep_cols].copy()
-        df["stck_bsop_date"] = pd.to_datetime(df["stck_bsop_date"], format="%Y%m%d", errors="coerce")
-        df.dropna(subset=["stck_bsop_date"], inplace=True)
-        df.set_index("stck_bsop_date", inplace=True)
-        df.rename(columns=self.OHLCV_COLUMN_MAP, inplace=True)
-        for col in ("시가", "고가", "저가", "종가", "거래량"):
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce")
-        df.sort_index(inplace=True)
-        return df
+        out = pd.concat(parts, axis=0)
+        out = out[~out.index.duplicated(keep="last")]
+        out.sort_index(inplace=True)
+        start_dt = pd.to_datetime(start_date, format="%Y%m%d", errors="coerce")
+        end_dt = pd.to_datetime(end_date, format="%Y%m%d", errors="coerce")
+        if pd.notna(start_dt) and pd.notna(end_dt):
+            out = out[(out.index >= start_dt) & (out.index <= end_dt)]
+        return out
 
     def get_investor_trading_by_date(self, ticker: str, start_date: str, end_date: str, share: str = "2"):
-        _ = share
+        start_date = self._normalize_yyyymmdd(start_date)
+        end_date = self._normalize_yyyymmdd(end_date)
+
         path = "/uapi/domestic-stock/v1/quotations/inquire-investor"
         tr_id = "FHKST01010900"
         params = {"FID_COND_MRKT_DIV_CODE": "J", "FID_INPUT_ISCD": ticker}
@@ -404,16 +309,29 @@ class KisApiClient:
         if "stck_bsop_date" not in df.columns:
             return pd.DataFrame()
 
-        keep_cols = [c for c in ("stck_bsop_date", *self.INVESTOR_COLUMN_MAP.keys()) if c in df.columns]
+        column_map = self.INVESTOR_COLUMN_MAP_AMOUNT if str(share) != "1" else self.INVESTOR_COLUMN_MAP_QTY
+        if not any(key in df.columns for key in column_map.keys()):
+            column_map = self.INVESTOR_COLUMN_MAP_AMOUNT
+
+        keep_cols = [c for c in ("stck_bsop_date", *column_map.keys()) if c in df.columns]
         df = df[keep_cols].copy()
         df["stck_bsop_date"] = pd.to_datetime(df["stck_bsop_date"], format="%Y%m%d", errors="coerce")
         df.dropna(subset=["stck_bsop_date"], inplace=True)
         df.set_index("stck_bsop_date", inplace=True)
-        df.rename(columns=self.INVESTOR_COLUMN_MAP, inplace=True)
+        df.rename(columns=column_map, inplace=True)
         for col in ("개인", "외국인합계", "기관합계"):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
         df.sort_index(inplace=True)
+
+        if start_date and end_date:
+            start_dt = pd.to_datetime(start_date, format="%Y%m%d", errors="coerce")
+            end_dt = pd.to_datetime(end_date, format="%Y%m%d", errors="coerce")
+            if pd.notna(start_dt) and pd.notna(end_dt) and (end_dt - start_dt).days >= 1:
+                self.last_error = (
+                    "KIS inquire-investor provides only the most recent trading day per symbol; "
+                    "historical daily investor time-series is not available via this endpoint."
+                )
 
         start_dt = pd.to_datetime(start_date, format="%Y%m%d", errors="coerce")
         end_dt = pd.to_datetime(end_date, format="%Y%m%d", errors="coerce")
@@ -424,15 +342,14 @@ class KisApiClient:
 class DataCollector:
     @staticmethod
     def get_full_analysis(ticker, start_date, end_date):
-        provider = os.getenv("MARKET_DATA_PROVIDER", "kis").strip().lower()
-        api_client = KisApiClient() if provider == "kis" else KRXApiClient()
+        api_client = KisApiClient()
 
         # 1) 시세 (필수)
         df_p = api_client.get_ohlcv_by_date(ticker, start_date, end_date)
         if df_p.empty:
             last_error = getattr(api_client, "last_error", None)
             raise RuntimeError(
-                f"{provider.upper()} OHLCV API returned no data. {KRXApiClient._format_last_error(last_error)}"
+                f"KIS OHLCV API returned no data. {_format_last_error(last_error)}"
             )
 
         # 2) 수급 (선택 / 제공 범위 차이)
@@ -481,13 +398,12 @@ class DataCollector:
     @staticmethod
     def generate_excel(ticker, start_date, end_date):
         # 시세와 11개 이상의 투자 주체 데이터 병합 및 엑셀 생성 (v4.8 로직)
-        provider = os.getenv("MARKET_DATA_PROVIDER", "kis").strip().lower()
-        api_client = KisApiClient() if provider == "kis" else KRXApiClient()
+        api_client = KisApiClient()
         df_p = api_client.get_ohlcv_by_date(ticker, start_date, end_date)
         if df_p.empty:
             last_error = getattr(api_client, "last_error", None)
             raise RuntimeError(
-                f"{provider.upper()} OHLCV API returned no data. {KRXApiClient._format_last_error(last_error)}"
+                f"KIS OHLCV API returned no data. {_format_last_error(last_error)}"
             )
         df_i = api_client.get_investor_trading_by_date(
             ticker, start_date, end_date, share="1"
