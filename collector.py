@@ -52,6 +52,7 @@ class KisConfig:
     app_secret: str
     debug: bool
     request_delay_sec: float
+    investor_detail: bool
 
 
 class KisApiClient:
@@ -76,10 +77,27 @@ class KisApiClient:
         "orgn_ntby_tr_pbmn": "기관합계",
     }
     INVESTOR_COLUMN_MAP_QTY = {
-        "prsn_ntby_tr_qty": "개인",
-        "frgn_ntby_tr_qty": "외국인합계",
-        "orgn_ntby_tr_qty": "기관합계",
+        "prsn_ntby_qty": "개인",
+        "frgn_ntby_qty": "외국인합계",
+        "orgn_ntby_qty": "기관합계",
     }
+    INVESTOR_DETAIL_MAP_AMOUNT = {
+        "prsn_shnu_tr_pbmn": "개인_매수대금",
+        "prsn_seln_tr_pbmn": "개인_매도대금",
+        "frgn_shnu_tr_pbmn": "외국인_매수대금",
+        "frgn_seln_tr_pbmn": "외국인_매도대금",
+        "orgn_shnu_tr_pbmn": "기관_매수대금",
+        "orgn_seln_tr_pbmn": "기관_매도대금",
+    }
+    INVESTOR_DETAIL_MAP_VOL = {
+        "prsn_shnu_vol": "개인_매수량",
+        "prsn_seln_vol": "개인_매도량",
+        "frgn_shnu_vol": "외국인_매수량",
+        "frgn_seln_vol": "외국인_매도량",
+        "orgn_shnu_vol": "기관_매수량",
+        "orgn_seln_vol": "기관_매도량",
+    }
+    INVESTOR_PBMN_TO_KRW_MULTIPLIER = 1_000_000  # 백만원 단위로 내려오는 값을 '원'으로 환산
 
     def __init__(self):
         _load_dotenv_if_present()
@@ -96,6 +114,7 @@ class KisApiClient:
         app_secret = (os.getenv("KIS_APP_SECRET") or "").strip()
         debug = os.getenv("KIS_API_DEBUG", "").strip().lower() in ("1", "true", "yes", "y", "on")
         request_delay_sec = float(os.getenv("KIS_REQUEST_DELAY_SEC", "0") or "0")
+        investor_detail = os.getenv("KIS_INVESTOR_DETAIL", "").strip().lower() in ("1", "true", "yes", "y", "on")
 
         self.config = KisConfig(
             env=env,
@@ -104,6 +123,7 @@ class KisApiClient:
             app_secret=app_secret,
             debug=debug,
             request_delay_sec=max(0.0, request_delay_sec),
+            investor_detail=investor_detail,
         )
 
         self.session = requests.Session()
@@ -309,29 +329,31 @@ class KisApiClient:
         if "stck_bsop_date" not in df.columns:
             return pd.DataFrame()
 
-        column_map = self.INVESTOR_COLUMN_MAP_AMOUNT if str(share) != "1" else self.INVESTOR_COLUMN_MAP_QTY
+        is_qty = str(share) == "1"
+        column_map = self.INVESTOR_COLUMN_MAP_QTY if is_qty else self.INVESTOR_COLUMN_MAP_AMOUNT
         if not any(key in df.columns for key in column_map.keys()):
+            # 서버 스펙/환경에 따라 필드가 달라질 수 있어 fallback
             column_map = self.INVESTOR_COLUMN_MAP_AMOUNT
 
-        keep_cols = [c for c in ("stck_bsop_date", *column_map.keys()) if c in df.columns]
+        extra_map = {}
+        if not is_qty and self.config.investor_detail:
+            extra_map = {**self.INVESTOR_DETAIL_MAP_AMOUNT, **self.INVESTOR_DETAIL_MAP_VOL}
+
+        keep_cols = [c for c in ("stck_bsop_date", *column_map.keys(), *extra_map.keys()) if c in df.columns]
         df = df[keep_cols].copy()
         df["stck_bsop_date"] = pd.to_datetime(df["stck_bsop_date"], format="%Y%m%d", errors="coerce")
         df.dropna(subset=["stck_bsop_date"], inplace=True)
         df.set_index("stck_bsop_date", inplace=True)
-        df.rename(columns=column_map, inplace=True)
-        for col in ("개인", "외국인합계", "기관합계"):
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce")
-        df.sort_index(inplace=True)
+        df.rename(columns={**column_map, **extra_map}, inplace=True)
+        df = df.apply(pd.to_numeric, errors="coerce")
 
-        if start_date and end_date:
-            start_dt = pd.to_datetime(start_date, format="%Y%m%d", errors="coerce")
-            end_dt = pd.to_datetime(end_date, format="%Y%m%d", errors="coerce")
-            if pd.notna(start_dt) and pd.notna(end_dt) and (end_dt - start_dt).days >= 1:
-                self.last_error = (
-                    "KIS inquire-investor provides only the most recent trading day per symbol; "
-                    "historical daily investor time-series is not available via this endpoint."
-                )
+        if not is_qty:
+            # *_tr_pbmn 계열은 '백만원' 단위로 내려와서 원(KRW)으로 환산
+            money_cols = [c for c in df.columns if c.endswith("대금") or c in ("개인", "외국인합계", "기관합계")]
+            if money_cols:
+                df[money_cols] = df[money_cols] * self.INVESTOR_PBMN_TO_KRW_MULTIPLIER
+
+        df.sort_index(inplace=True)
 
         start_dt = pd.to_datetime(start_date, format="%Y%m%d", errors="coerce")
         end_dt = pd.to_datetime(end_date, format="%Y%m%d", errors="coerce")
