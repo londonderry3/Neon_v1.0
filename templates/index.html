@@ -11,7 +11,7 @@
     <style>
         body { font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; display: flex; margin: 0; background: #0f111a; color: #eceff4; }
         
-        /* 사이드바 고정 */
+        /* Fixed sidebar */
         .sidebar { 
             width: 280px; background: #1a1b26; position: fixed; 
             height: 100vh; border-right: 1px solid #2e3440; 
@@ -28,12 +28,12 @@
         .card { background: #1a1b26; padding: 25px; border-radius: 12px; border: 1px solid #2e3440; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         h1 { color: #82aaff; border-bottom: 1px solid #2e3440; padding-bottom: 15px; margin-top: 0; }
         
-        /* 검색 및 옵션바 */
+        /* Search and option bar */
         .search-box { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-bottom: 25px; background: #1a1b26; padding: 20px; border-radius: 12px; border: 1px solid #414868; }
         input { background: #0f111a; border: 1px solid #4c566a; color: #eceff4; padding: 8px 12px; border-radius: 6px; text-align: center; }
         button { background: #82aaff; border: none; color: #1a1b26; padding: 8px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         
-        /* 모드 스위치 스타일 */
+        /* Mode switch style */
         .mode-switch { display: flex; align-items: center; gap: 10px; background: #0f111a; padding: 8px 15px; border-radius: 30px; border: 1px solid #414868; margin-left: 10px; }
         .mode-switch label { font-size: 12px; cursor: pointer; color: #9ea9c1; display: flex; align-items: center; gap: 5px; }
         .mode-switch input[type="radio"] { cursor: pointer; margin: 0; }
@@ -60,7 +60,8 @@
         .crypto-metric-item { background: #24283b; border: 1px solid #414868; border-radius: 8px; padding: 12px; }
         .crypto-price { font-size: 22px; font-weight: bold; color: #73daca; margin: 6px 0 8px; }
         .crypto-meta { font-size: 12px; color: #9ea9c1; }
-        .crypto-chart { width: 100%; height: 520px; margin-top: 16px; }
+        .crypto-chart { width: 100%; height: 320px; margin-top: 10px; }
+        .crypto-chart-card { margin-top: 14px; background: #101320; border: 1px solid #2e3440; border-radius: 10px; padding: 14px; }
     </style>
 </head>
 	<body>
@@ -86,7 +87,7 @@
 
 	    <div class="main-content">
 		        <div id="realtime-chart" class="tab-content active">
-		            <h1>주식 수급 조회</h1>
+		            <h1>Stock Flow Analysis</h1>
 		            <div class="search-box">
 		                <div><label style="color:#82aaff; font-size:11px;">TICKER</label><br><input type="text" id="ticker-input" value="005930" style="width:80px; margin-top:5px;"></div>
 		                <div><label style="color:#82aaff; font-size:11px;">PERIOD</label><br><input type="date" id="start-date" style="margin-top:5px;"> ~ <input type="date" id="end-date" style="margin-top:5px;"></div>
@@ -110,12 +111,12 @@
 	                </div>
 	            </div>
 	            <div id="result-display" class="card" style="min-height: 500px;">
-	                <p style="color:#565f89; text-align:center; padding-top:200px;">조회할 종목과 기간을 선택하세요.</p>
+		                <p style="color:#565f89; text-align:center; padding-top:200px;">Select a ticker and date range.</p>
 	            </div>
 	        </div>
 
 	        <div id="crypto-dashboard" class="tab-content">
-	            <h1>암호화폐</h1>
+	            <h1>Cryptocurrency</h1>
 	            <div class="search-box">
 	                <div>
 	                    <label style="color:#82aaff; font-size:11px;">SYMBOLS</label><br>
@@ -135,7 +136,7 @@
 	                </div>
 	            </div>
 	            <div id="crypto-display" class="card" style="min-height: 560px;">
-	                <p style="color:#565f89; text-align:center; padding-top:220px;">Crypto 데이터를 불러오세요.</p>
+	                <p style="color:#565f89; text-align:center; padding-top:220px;">Click LOAD CRYPTO to fetch market data.</p>
 	            </div>
 	        </div>
 
@@ -143,11 +144,11 @@
 	            <h1>GIT COMMANDS LOG</h1>
 	            <div class="card" id="md-editor-container"> <div class="git-commands-header">
 	                    <div class="git-commands-title">
-                        <p class="git-commands-note">개발 중에 알게 된 Git 명령어를 기록하고 Gist와 동기화하세요.</p>
+                        <p class="git-commands-note">Record useful Git commands and sync them with Gist.</p>
                         <span id="git-commands-status" class="status-pill">Ready</span>
                     </div>
                     <div class="git-commands-actions">
-                        <button id="save-btn" onclick="saveToGist('git-commands')">Gist에 저장</button>
+                        <button id="save-btn" onclick="saveToGist('git-commands')">Save to Gist</button>
                         <button class="ghost-button" onclick="loadGistContent('git-commands')">REFRESH</button>
                     </div>
                 </div>
@@ -169,11 +170,11 @@
             <div class="card">
                 <div class="git-commands-header">
                     <div class="git-commands-title">
-                        <p class="git-commands-note">관찰과 아이디어를 기록하고 Gist의 Insights.md에 누적하세요.</p>
+                        <p class="git-commands-note">Capture observations and ideas, then sync them to Insights.md on Gist.</p>
                         <span id="insights-status" class="status-pill">Ready</span>
                     </div>
                     <div class="git-commands-actions">
-                        <button id="insights-save-btn" onclick="saveToGist('insights')">Gist에 저장</button>
+                        <button id="insights-save-btn" onclick="saveToGist('insights')">Save to Gist</button>
                         <button class="ghost-button" onclick="loadGistContent('insights')">REFRESH</button>
                     </div>
                 </div>
@@ -193,7 +194,7 @@
     </div>
 
     <script>
-        let currentChartData = null; // 데이터를 메모리에 보관
+        let currentChartData = null; // Keep data in memory
         let currentCryptoData = null;
         let selectedSubjects = null;
         let subjectList = [];
@@ -236,15 +237,15 @@
                 const data = await response.json();
 
                 if (data.status === "SUCCESS") {
-                    currentChartData = data; // 전역 변수에 저장
-                    renderChart(); // UI와 차트 렌더링
+                    currentChartData = data; // Save globally
+                    renderChart(); // Render UI and chart
                 } else {
                     display.innerHTML = `<h2 style="color:#f7768e; text-align:center; padding-top:100px;">❌ Error: ${data.error_msg}</h2>`;
                 }
             } catch (e) { console.error(e); }
         }
 
-        // 일별/누적 전환 시 호출
+        // Called when switching daily/cumulative mode
         function toggleViewMode() {
             if (currentChartData) renderChart();
         }
@@ -254,7 +255,7 @@
             const display = document.getElementById('result-display');
             const mode = document.querySelector('input[name="view-mode"]:checked').value;
             
-            // 상단 그리드 HTML 생성 (last_metrics 기반)
+            // Build top metric grid HTML
             let gridHtml = '';
             //for (const [name, value] of Object.entries(data.last_metrics)) {
             //    const valNum = parseFloat(value);
@@ -262,21 +263,21 @@
             //    gridHtml += `
             //        <div class="metric-item" style="border-left-color: ${color};">
             //            <div style="color:#9ea9c1; font-size:11px;">${name}</div>
-            //            <div style="font-size:16px; font-weight:bold; color:${color};">${valNum > 0 ? '+' : ''}${value}억</div>
+            //            <div style="font-size:16px; font-weight:bold; color:${color};">${valNum > 0 ? '+' : ''}${value} (100M KRW)</div>
             //        </div>`;
             //}
 
             display.innerHTML = `
                 <h2 style="color:#73daca; margin-bottom:5px;">✅ ${data.ticker_name}</h2>
-                <p style="font-size:24px; font-weight:bold; margin-bottom:20px;">종가: ${data.current_price}</p>
+                <p style="font-size:24px; font-weight:bold; margin-bottom:20px;">Close: ${data.current_price}</p>
                 <div class="metrics-grid">${gridHtml}</div>
                 <div id="trend-chart" style="width:100%; height:500px;"></div>
             `;
 
-            // 모드에 따른 데이터 소스 선택
+            // Choose data source by selected mode
             const trendSource = (mode === 'daily') ? data.daily_trend : data.cum_trend;
-            const yTitle = (mode === 'daily') ? '일별 수급 (억 원)' : '누적 수급 (억 원)';
-            const labelSuffix = (mode === 'daily') ? '(일별)' : '(누적)';
+            const yTitle = (mode === 'daily') ? 'Daily Flow (100M KRW)' : 'Cumulative Flow (100M KRW)';
+            const labelSuffix = (mode === 'daily') ? '(Daily)' : '(Cumulative)';
             const subjectNames = Object.keys(trendSource);
 
             if (!selectedSubjects) {
@@ -292,10 +293,10 @@
                 renderSubjectFilters(subjectNames);
             }
 
-            // 2. 상단 그리드 HTML 동적 생성 (현재 선택된 모드의 마지막 값을 추출)
+            // Build metric cards with the latest value
             for (const name of subjectNames) {
                 const values = trendSource[name];
-                const lastValue = values[values.length - 1]; // 리스트의 가장 마지막 값 추출
+                const lastValue = values[values.length - 1];
 
                 const color = lastValue > 0 ? '#f7768e' : (lastValue < 0 ? '#7aa2f7' : '#9ea9c1');
 
@@ -303,21 +304,21 @@
                     <div class="metric-item" style="border-left-color: ${color};">
                         <div style="color:#9ea9c1; font-size:11px;">${name} ${labelSuffix}</div>
                         <div style="font-size:16px; font-weight:bold; color:${color};">
-                            ${lastValue > 0 ? '+' : ''}${lastValue.toLocaleString()}억
+                            ${lastValue > 0 ? '+' : ''}${lastValue.toLocaleString()} (100M KRW)
                         </div>
                     </div>`;
             }
 
-            // 3. UI 업데이트 (종가 아래에 그리드 삽입)
+            // Update UI
             display.innerHTML = `
                 <h2 style="color:#73daca; margin-bottom:5px;">✅ ${data.ticker_name}</h2>
-                <p style="font-size:24px; font-weight:bold; margin-bottom:20px;">종가: ${data.current_price}</p>
+                <p style="font-size:24px; font-weight:bold; margin-bottom:20px;">Close: ${data.current_price}</p>
                 <div class="metrics-grid">${gridHtml}</div>
                 <div id="trend-chart" style="width:100%; height:500px;"></div>
             `;
 
 
-            // 수급 트레이스
+            // Flow traces
             const activeSubjects = subjectNames.filter(name => selectedSubjects.has(name));
             const traces = activeSubjects.map(name => ({
                 x: data.dates, y: trendSource[name],
@@ -325,19 +326,17 @@
                 line: { shape: 'spline', width: 1.5 }, opacity: 0.7, yaxis: 'y'
             }));
 
-            // ✅ 주가 트레이스 (네온 레이어링 꼼수)
-            // 1. 광원 효과 (굵고 흐린 선)
+            // Price traces with glow effect
             traces.push({
                 x: data.dates, y: data.prices,
-                name: '주가 광원', type: 'scatter', mode: 'lines',
+                name: 'Price Glow', type: 'scatter', mode: 'lines',
                 line: { color: '#00FFFF', width: 12, shape: 'spline' },
                 opacity: 0.2, yaxis: 'y2', showlegend: false, hoverinfo: 'none'
             });
 
-            // 2. 메인 선 (선명한 네온 블루)
             traces.push({
                 x: data.dates, y: data.prices,
-                name: '주가(하이라이트)', type: 'scatter', mode: 'lines',
+                name: 'Price (Highlight)', type: 'scatter', mode: 'lines',
                 line: { color: '#00FFFF', width: 4, shape: 'spline', smoothing: 1.3 },
                 yaxis: 'y2'
             });
@@ -354,7 +353,7 @@
                 xaxis: { type: 'date', gridcolor: '#2e3440', zeroline: false },
                 yaxis: { title: yTitle, gridcolor: '#2e3440', zeroline: false },
                 yaxis2: { 
-                    title: '주가 (원)', overlaying: 'y', side: 'right', 
+                    title: 'Price (KRW)', overlaying: 'y', side: 'right', 
                     showgrid: false, zeroline: false, font: { color: '#00FFFF' } 
                 },
                 legend: { orientation: 'h', y: -0.2 }
@@ -399,7 +398,7 @@
                 renderCryptoChart();
             } catch (error) {
                 console.error(error);
-                display.innerHTML = '<h2 style="color:#f7768e; text-align:center; padding-top:120px;">❌ 네트워크 오류가 발생했습니다.</h2>';
+                display.innerHTML = '<h2 style="color:#f7768e; text-align:center; padding-top:120px;">❌ Network error occurred.</h2>';
             }
         }
 
@@ -421,33 +420,41 @@
             }).join('');
 
             display.innerHTML = `
-                <h2 style="color:#73daca; margin-bottom:5px;">✅ Binance 실시간 시세</h2>
+                <h2 style="color:#73daca; margin-bottom:5px;">✅ Binance Live Prices</h2>
                 <p style="color:#9ea9c1; margin-top:0;">Interval: ${interval} | Symbols: BTCUSDT, ETHUSDT, SOLUSDT</p>
                 <div class="crypto-metrics-grid">${metricsHtml}</div>
-                <div id="crypto-trend-chart" class="crypto-chart"></div>
+                ${assets.map((asset) => `
+                    <div class="crypto-chart-card">
+                        <div style="font-size:14px; color:#82aaff; font-weight:bold;">${asset.symbol} Price Chart</div>
+                        <div id="crypto-trend-chart-${asset.symbol}" class="crypto-chart"></div>
+                    </div>
+                `).join('')}
             `;
 
-            const traces = assets.map((asset) => ({
-                x: asset.times.map((ts) => new Date(ts)),
-                y: asset.closes,
-                mode: 'lines',
-                name: asset.symbol,
-                line: { width: 2, shape: 'spline' },
-            }));
+            assets.forEach((asset) => {
+                const chartId = `crypto-trend-chart-${asset.symbol}`;
+                const trace = {
+                    x: asset.times.map((ts) => new Date(ts)),
+                    y: asset.closes,
+                    mode: 'lines',
+                    name: asset.symbol,
+                    line: { width: 2.5, shape: 'spline' }
+                };
 
-            Plotly.newPlot('crypto-trend-chart', traces, {
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                font: { color: '#eceff4' },
-                margin: { t: 30, b: 70, l: 60, r: 30 },
-                hovermode: 'x unified',
-                xaxis: { type: 'date', gridcolor: '#2e3440', zeroline: false },
-                yaxis: { title: '가격 (USDT)', gridcolor: '#2e3440', zeroline: false },
-                legend: { orientation: 'h', y: -0.2 }
-            }, { responsive: true });
+                Plotly.newPlot(chartId, [trace], {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#eceff4' },
+                    margin: { t: 20, b: 60, l: 60, r: 20 },
+                    hovermode: 'x unified',
+                    xaxis: { type: 'date', gridcolor: '#2e3440', zeroline: false },
+                    yaxis: { title: 'Price (USDT)', gridcolor: '#2e3440', zeroline: false },
+                    showlegend: false
+                }, { responsive: true });
+            });
         }
 
-        // [중요] openTab 함수 수정
+        // openTab handler
         const gistTabConfigs = {
             'git-commands': {
                 endpoint: '/api/git-commands',
@@ -467,13 +474,13 @@
         };
 
 	        async function openTab(evt, tabName) {
-	            // 모든 탭 숨기기
+	            // Hide all tabs
 	            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
 	            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
             evt.currentTarget.classList.add('active');
 
-            // Gist 연동 탭 처리
+            // Handle gist-backed tabs
             const target = document.getElementById(tabName);
             if(target) target.style.display = 'block';
 
@@ -484,7 +491,7 @@
 	            }
 	        }
 
-        // 2. Gist로부터 데이터 Fetch
+        // Fetch data from Gist
         async function loadGistContent(tabName) {
             const config = gistTabConfigs[tabName];
             if (!config) return;
@@ -493,7 +500,7 @@
             const status = document.getElementById(config.statusId);
 
             if (!editor) return;
-            editor.value = "Gist 서버에서 데이터를 동기화 중...";
+            editor.value = "Syncing content from Gist...";
             if (status) status.innerText = "Syncing...";
 
             try {
@@ -507,18 +514,18 @@
                     }
                     if (status) status.innerText = "Connected";
                 } else {
-                    editor.value = "로드 실패: " + (data.error_msg || "Unknown");
+                    editor.value = "Load failed: " + (data.error_msg || "Unknown");
                     if (status) status.innerText = "Error";
                 }
             } catch (err) {
                 console.error("Fetch Error:", err);
-                editor.value = "서버 통신 에러";
+                editor.value = "Server communication error";
             }
         }
 
 
 
-        // 3. Gist에 데이터 저장 (POST)
+        // Save data to Gist (POST)
         async function saveToGist(tabName) {
             const config = gistTabConfigs[tabName];
             if (!config) return;
@@ -527,9 +534,9 @@
             const saveBtn = document.getElementById(config.saveBtnId);
             const content = editor ? editor.value : "";
 
-            if (!confirm('Gist에 저장하시겠습니까?')) return;
+            if (!confirm('Save to Gist?')) return;
 
-            saveBtn.innerText = '저장 중...';
+            saveBtn.innerText = 'Saving...';
             saveBtn.disabled = true;
 
             try {
@@ -544,31 +551,31 @@
                     if (config.renderPreview && preview) {
                         renderMarkdown(preview, content);
                     }
-                    alert('GitHub Gist 동기화 완료!');
+                    alert('GitHub Gist sync complete.');
                 } else {
-                    alert('저장 실패: ' + result.error_msg);
+                    alert('Save failed: ' + result.error_msg);
                 }
             } catch (err) {
-                alert('네트워크 에러');
+                alert('Network error');
             } finally {
-                saveBtn.innerText = 'Gist에 저장';
+                saveBtn.innerText = 'Save to Gist';
                 saveBtn.disabled = false;
             }
         }
 
-        // 마크다운 렌더링 엔진 보완
+        // Markdown rendering helper
         function renderMarkdown(element, text) {
             if (!element) return;
 
-            // 1. 기본 마크다운 변환
+            // 1) Parse markdown
             element.innerHTML = marked.parse(text || '');
 
-            // 2. 코드 하이라이팅 적용 (hljs가 로드되어 있을 경우)
+            // 2) Apply syntax highlighting when hljs is loaded
             element.querySelectorAll('pre code').forEach((block) => {
                 if (typeof hljs !== 'undefined') hljs.highlightElement(block);
             });
 
-            // 3. Mermaid 다이어그램이 있다면 재렌더링
+            // 3) Re-render Mermaid diagrams if present
             if (text.includes('```mermaid') && typeof mermaid !== 'undefined') {
                 mermaid.init(undefined, ".mermaid");
             }

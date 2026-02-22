@@ -11,7 +11,7 @@ except Exception:
 if load_dotenv is not None:
     load_dotenv()
 
-from collector import DataCollector # 분리된 엔진 불러오기
+from collector import DataCollector  # Load separated engine
 
 app = Flask(__name__)
 DOCS_DIR = "docs"
@@ -49,7 +49,7 @@ class GistManager:
         response = requests.get(url, headers=self.headers, timeout=10)
         if response.status_code == 200:
             files = response.json().get('files', {})
-            return files.get(filename, {}).get('content', "내용 없음")
+            return files.get(filename, {}).get('content', "No content")
         return None
 
 
@@ -60,7 +60,7 @@ def get_gist_manager():
 
 def init_system():
     if not os.path.exists(DOCS_DIR): os.makedirs(DOCS_DIR)
-    # 기존 초기화 로직 유지 (flowchart.md 등 생성)
+    # Keep existing initialization logic (e.g., flowchart.md generation)
 
 def get_doc_content(filename):
     path = os.path.join(DOCS_DIR, filename)
@@ -110,7 +110,7 @@ def crypto_data():
     interval = request.args.get('interval', '1h')
     limit_arg = request.args.get('limit', '120')
     if interval not in {"1m", "5m", "15m", "1h", "4h", "1d"}:
-        return jsonify({"status": "ERROR", "error_msg": "지원하지 않는 interval 입니다."}), 400
+        return jsonify({"status": "ERROR", "error_msg": "Unsupported interval."}), 400
 
     try:
         limit = int(limit_arg)
@@ -150,7 +150,7 @@ def crypto_data():
         )
     except requests.RequestException as exc:
         print(f"BINANCE API ERROR: {exc}")
-        return jsonify({"status": "ERROR", "error_msg": "Binance API 호출 실패"}), 502
+        return jsonify({"status": "ERROR", "error_msg": "Failed to call Binance API."}), 502
     except Exception as exc:
         print(f"CRYPTO ERROR: {exc}")
         return jsonify({"status": "ERROR", "error_msg": str(exc)}), 500
