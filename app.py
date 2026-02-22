@@ -15,6 +15,8 @@ from collector import DataCollector # 분리된 엔진 불러오기
 
 app = Flask(__name__)
 DOCS_DIR = "docs"
+BINANCE_BASE_URL = "https://api.binance.com"
+CRYPTO_SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
 GIST_TOKEN = os.getenv("GIST_TOKEN")
 GIST_ID = os.getenv("GIST_ID")
 print("DBG : ",GIST_ID)
@@ -64,6 +66,12 @@ def get_doc_content(filename):
     path = os.path.join(DOCS_DIR, filename)
     return open(path, "r", encoding="utf-8").read() if os.path.exists(path) else ""
 
+
+def fetch_binance_json(path, params):
+    response = requests.get(f"{BINANCE_BASE_URL}{path}", params=params, timeout=10)
+    response.raise_for_status()
+    return response.json()
+
 @app.route('/')
 def index():
     all_files = sorted([f for f in os.listdir(DOCS_DIR) if f.endswith('.md')])
@@ -95,6 +103,57 @@ def save_excel():
     except Exception as exc:
         print(f"KIS API EXCEL ERROR: {exc}")
         return jsonify({"status": "ERROR", "error_msg": str(exc)}), 502
+
+
+@app.route('/api/crypto-data')
+def crypto_data():
+    interval = request.args.get('interval', '1h')
+    limit_arg = request.args.get('limit', '120')
+    if interval not in {"1m", "5m", "15m", "1h", "4h", "1d"}:
+        return jsonify({"status": "ERROR", "error_msg": "지원하지 않는 interval 입니다."}), 400
+
+    try:
+        limit = int(limit_arg)
+    except ValueError:
+        limit = 120
+    limit = max(30, min(limit, 500))
+
+    try:
+        assets = []
+        for symbol in CRYPTO_SYMBOLS:
+            price_json = fetch_binance_json("/api/v3/ticker/price", {"symbol": symbol})
+            stat_json = fetch_binance_json("/api/v3/ticker/24hr", {"symbol": symbol})
+            kline_json = fetch_binance_json(
+                "/api/v3/klines",
+                {"symbol": symbol, "interval": interval, "limit": limit},
+            )
+
+            assets.append(
+                {
+                    "symbol": symbol,
+                    "base_asset": symbol.replace("USDT", ""),
+                    "current_price": float(price_json["price"]),
+                    "price_change_percent_24h": float(stat_json["priceChangePercent"]),
+                    "quote_volume_24h": float(stat_json["quoteVolume"]),
+                    "times": [int(item[0]) for item in kline_json],
+                    "closes": [float(item[4]) for item in kline_json],
+                }
+            )
+
+        return jsonify(
+            {
+                "status": "SUCCESS",
+                "interval": interval,
+                "assets": assets,
+                "source": "Binance Public API",
+            }
+        )
+    except requests.RequestException as exc:
+        print(f"BINANCE API ERROR: {exc}")
+        return jsonify({"status": "ERROR", "error_msg": "Binance API 호출 실패"}), 502
+    except Exception as exc:
+        print(f"CRYPTO ERROR: {exc}")
+        return jsonify({"status": "ERROR", "error_msg": str(exc)}), 500
 
 @app.route('/api/git-commands', methods=['GET', 'POST'])
 def git_commands():
