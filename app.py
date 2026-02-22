@@ -1,5 +1,6 @@
 import json
 import os
+import time
 
 import requests
 from flask import Flask, render_template, jsonify, request, send_file
@@ -84,6 +85,36 @@ def fetch_binance_json(path, params):
     response.raise_for_status()
     return response.json()
 
+
+def fetch_binance_ticker_snapshot():
+    symbols_param = json.dumps(CRYPTO_SYMBOLS)
+    try:
+        prices = fetch_binance_json("/api/v3/ticker/price", {"symbols": symbols_param})
+    except requests.RequestException:
+        prices = [fetch_binance_json("/api/v3/ticker/price", {"symbol": s}) for s in CRYPTO_SYMBOLS]
+
+    try:
+        stats = fetch_binance_json("/api/v3/ticker/24hr", {"symbols": symbols_param})
+    except requests.RequestException:
+        stats = [fetch_binance_json("/api/v3/ticker/24hr", {"symbol": s}) for s in CRYPTO_SYMBOLS]
+
+    price_map = {item["symbol"]: item for item in prices}
+    stat_map = {item["symbol"]: item for item in stats}
+    snapshot_assets = []
+    for symbol in CRYPTO_SYMBOLS:
+        price_item = price_map[symbol]
+        stat_item = stat_map[symbol]
+        snapshot_assets.append(
+            {
+                "symbol": symbol,
+                "base_asset": symbol.replace("USDT", ""),
+                "current_price": float(price_item["price"]),
+                "price_change_percent_24h": float(stat_item["priceChangePercent"]),
+                "quote_volume_24h": float(stat_item["quoteVolume"]),
+            }
+        )
+    return snapshot_assets
+
 @app.route('/')
 def index():
     all_files = sorted([f for f in os.listdir(DOCS_DIR) if f.endswith('.md')])
@@ -131,26 +162,21 @@ def crypto_data():
     limit = max(30, min(limit, 500))
 
     try:
+        snapshot_assets = fetch_binance_ticker_snapshot()
         assets = []
-        for symbol in CRYPTO_SYMBOLS:
-            price_json = fetch_binance_json("/api/v3/ticker/price", {"symbol": symbol})
-            stat_json = fetch_binance_json("/api/v3/ticker/24hr", {"symbol": symbol})
+        for snapshot_asset in snapshot_assets:
+            symbol = snapshot_asset["symbol"]
             kline_json = fetch_binance_json(
                 "/api/v3/klines",
                 {"symbol": symbol, "interval": interval, "limit": limit},
             )
 
-            assets.append(
-                {
-                    "symbol": symbol,
-                    "base_asset": symbol.replace("USDT", ""),
-                    "current_price": float(price_json["price"]),
-                    "price_change_percent_24h": float(stat_json["priceChangePercent"]),
-                    "quote_volume_24h": float(stat_json["quoteVolume"]),
-                    "times": [int(item[0]) for item in kline_json],
-                    "closes": [float(item[4]) for item in kline_json],
-                }
-            )
+            asset = {
+                **snapshot_asset,
+                "times": [int(item[0]) for item in kline_json],
+                "closes": [float(item[4]) for item in kline_json],
+            }
+            assets.append(asset)
 
         return jsonify(
             {
@@ -165,6 +191,26 @@ def crypto_data():
         return jsonify({"status": "ERROR", "error_msg": "Failed to call Binance API."}), 502
     except Exception as exc:
         print(f"CRYPTO ERROR: {exc}")
+        return jsonify({"status": "ERROR", "error_msg": str(exc)}), 500
+
+
+@app.route('/api/crypto-ticker')
+def crypto_ticker():
+    try:
+        assets = fetch_binance_ticker_snapshot()
+        return jsonify(
+            {
+                "status": "SUCCESS",
+                "assets": assets,
+                "source": "Binance Public API",
+                "server_time_ms": int(time.time() * 1000),
+            }
+        )
+    except requests.RequestException as exc:
+        print(f"BINANCE TICKER API ERROR: {exc}")
+        return jsonify({"status": "ERROR", "error_msg": "Failed to call Binance API."}), 502
+    except Exception as exc:
+        print(f"CRYPTO TICKER ERROR: {exc}")
         return jsonify({"status": "ERROR", "error_msg": str(exc)}), 500
 
 @app.route('/api/git-commands', methods=['GET', 'POST'])

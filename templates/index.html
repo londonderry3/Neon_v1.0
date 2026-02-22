@@ -62,6 +62,7 @@
         .crypto-metric-item { background: #24283b; border: 1px solid #414868; border-radius: 8px; padding: 12px; }
         .crypto-price { font-size: 22px; font-weight: bold; color: #73daca; margin: 6px 0 8px; }
         .crypto-meta { font-size: 12px; color: #9ea9c1; }
+        .crypto-live-status { display: inline-block; margin-left: 10px; color: #9ea9c1; font-size: 12px; }
         .crypto-chart { width: 100%; height: 320px; margin-top: 10px; }
         .crypto-chart-card { margin-top: 14px; background: #101320; border: 1px solid #2e3440; border-radius: 10px; padding: 14px; }
     </style>
@@ -200,6 +201,7 @@
     <script>
         let currentChartData = null; // Keep data in memory
         let currentCryptoData = null;
+        let cryptoAutoRefreshTimer = null;
         let selectedSubjects = null;
         let subjectList = [];
 
@@ -400,9 +402,60 @@
                 }
                 currentCryptoData = data;
                 renderCryptoChart();
+                startCryptoAutoRefresh();
             } catch (error) {
                 console.error(error);
                 display.innerHTML = '<h2 style="color:#f7768e; text-align:center; padding-top:120px;">❌ Network error occurred.</h2>';
+            }
+        }
+
+        function startCryptoAutoRefresh() {
+            stopCryptoAutoRefresh();
+            cryptoAutoRefreshTimer = setInterval(() => {
+                const cryptoTab = document.getElementById('crypto-dashboard');
+                if (cryptoTab && cryptoTab.style.display !== 'none') {
+                    refreshCryptoTicker();
+                }
+            }, 1000);
+        }
+
+        function stopCryptoAutoRefresh() {
+            if (cryptoAutoRefreshTimer) {
+                clearInterval(cryptoAutoRefreshTimer);
+                cryptoAutoRefreshTimer = null;
+            }
+        }
+
+        async function refreshCryptoTicker() {
+            try {
+                const response = await fetch('/api/crypto-ticker');
+                const data = await response.json();
+                if (data.status !== 'SUCCESS') return;
+
+                data.assets.forEach((asset) => {
+                    const priceEl = document.getElementById(`crypto-price-${asset.symbol}`);
+                    const changeEl = document.getElementById(`crypto-change-${asset.symbol}`);
+                    const volumeEl = document.getElementById(`crypto-volume-${asset.symbol}`);
+                    if (priceEl) {
+                        priceEl.textContent = asset.current_price.toLocaleString(undefined, { maximumFractionDigits: 4 });
+                    }
+                    if (changeEl) {
+                        const positive = asset.price_change_percent_24h >= 0;
+                        changeEl.style.color = positive ? '#f7768e' : '#7aa2f7';
+                        changeEl.textContent = `24h: ${positive ? '+' : ''}${asset.price_change_percent_24h.toFixed(2)}%`;
+                    }
+                    if (volumeEl) {
+                        volumeEl.textContent = `24h Quote Vol: ${Math.round(asset.quote_volume_24h).toLocaleString()} USDT`;
+                    }
+                });
+
+                const updatedAtEl = document.getElementById('crypto-last-updated');
+                if (updatedAtEl && data.server_time_ms) {
+                    updatedAtEl.textContent = `Auto-refresh: every 1s | Updated: ${new Date(data.server_time_ms).toLocaleTimeString()}`;
+                }
+            } catch (error) {
+                // keep silent to avoid alert spam during auto refresh
+                console.error(error);
             }
         }
 
@@ -416,16 +469,16 @@
                 return `
                     <div class="crypto-metric-item">
                         <div style="font-size:12px; color:#9ea9c1;">${asset.symbol}</div>
-                        <div class="crypto-price">${asset.current_price.toLocaleString(undefined, { maximumFractionDigits: 4 })}</div>
-                        <div class="crypto-meta" style="color:${changeColor};">24h: ${changePrefix}${asset.price_change_percent_24h.toFixed(2)}%</div>
-                        <div class="crypto-meta">24h Quote Vol: ${Math.round(asset.quote_volume_24h).toLocaleString()} USDT</div>
+                        <div id="crypto-price-${asset.symbol}" class="crypto-price">${asset.current_price.toLocaleString(undefined, { maximumFractionDigits: 4 })}</div>
+                        <div id="crypto-change-${asset.symbol}" class="crypto-meta" style="color:${changeColor};">24h: ${changePrefix}${asset.price_change_percent_24h.toFixed(2)}%</div>
+                        <div id="crypto-volume-${asset.symbol}" class="crypto-meta">24h Quote Vol: ${Math.round(asset.quote_volume_24h).toLocaleString()} USDT</div>
                     </div>
                 `;
             }).join('');
 
             display.innerHTML = `
                 <h2 style="color:#73daca; margin-bottom:5px;">✅ Binance Live Prices</h2>
-                <p style="color:#9ea9c1; margin-top:0;">Interval: ${interval} | Symbols: BTCUSDT, ETHUSDT, SOLUSDT</p>
+                <p style="color:#9ea9c1; margin-top:0;">Interval: ${interval} | Symbols: BTCUSDT, ETHUSDT, SOLUSDT <span id="crypto-last-updated" class="crypto-live-status">Auto-refresh: every 1s</span></p>
                 <div class="crypto-metrics-grid">${metricsHtml}</div>
                 ${assets.map((asset) => `
                     <div class="crypto-chart-card">
@@ -487,6 +540,11 @@
             // Handle gist-backed tabs
             const target = document.getElementById(tabName);
             if(target) target.style.display = 'block';
+            if (tabName === 'crypto-dashboard') {
+                startCryptoAutoRefresh();
+            } else {
+                stopCryptoAutoRefresh();
+            }
 
 	            if (gistTabConfigs[tabName]) {
 	                await loadGistContent(tabName);
