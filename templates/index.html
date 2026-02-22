@@ -58,15 +58,21 @@
         .markdown-body pre code { display: block; }
     </style>
 </head>
-<body>
-    <div class="sidebar">
-        <h2 style="text-align:center; color:#82aaff; margin-bottom: 30px;">✨ GPT V1.0</h2>
-        <div class="nav-label">Dashboard</div>
-        <div class="nav-item" onclick="openTab(event, 'realtime-chart')">📈 Neon Intelligence</div>
-        <div class="nav-item active" onclick="openTab(event, 'flowchart.md')">Overall Flow</div>
-        <div class="nav-label">personal-OS</div>
-        <div class="nav-item" onclick="openTab(event, 'git-commands')">└ 🧾 Git Commands</div>
-        <div class="nav-item" onclick="openTab(event, 'insights')">└ 💡 Insight</div>
+	<body>
+	    <div class="sidebar">
+	        <h2 style="text-align:center; color:#82aaff; margin-bottom: 30px;">✨ GPT V1.0</h2>
+	        <div class="nav-label">Dashboard</div>
+	        <div class="nav-item active" onclick="openTab(event, 'flowchart.md')">Overall Flow</div>
+
+	        <div class="nav-label">주식</div>
+	        <div class="nav-item" onclick="openTab(event, 'realtime-chart')">└ 📈 수급 조회 (Neon Intelligence)</div>
+
+	        <div class="nav-label">암호화폐</div>
+	        <div class="nav-item" onclick="openTab(event, 'crypto-dashboard')">└ 🪙 암호화폐 (준비중)</div>
+
+	        <div class="nav-label">personal-OS</div>
+	        <div class="nav-item" onclick="openTab(event, 'git-commands')">└ 🧾 Git Commands</div>
+	        <div class="nav-item" onclick="openTab(event, 'insights')">└ 💡 Insight</div>
         
         <div class="nav-label">Strategy MD</div>
         {% for f in md_section_files %}
@@ -80,11 +86,11 @@
             <div class="card"><div class="mermaid">{{ contents['flowchart.md'] }}</div></div>
         </div>
 
-        <div id="realtime-chart" class="tab-content">
-            <h1>MARKET TREND</h1>
-            <div class="search-box">
-                <div><label style="color:#82aaff; font-size:11px;">TICKER</label><br><input type="text" id="ticker-input" value="005930" style="width:80px; margin-top:5px;"></div>
-                <div><label style="color:#82aaff; font-size:11px;">PERIOD</label><br><input type="date" id="start-date" style="margin-top:5px;"> ~ <input type="date" id="end-date" style="margin-top:5px;"></div>
+	        <div id="realtime-chart" class="tab-content">
+	            <h1>주식 수급 조회</h1>
+	            <div class="search-box">
+	                <div><label style="color:#82aaff; font-size:11px;">TICKER</label><br><input type="text" id="ticker-input" value="005930" style="width:80px; margin-top:5px;"></div>
+	                <div><label style="color:#82aaff; font-size:11px;">PERIOD</label><br><input type="date" id="start-date" style="margin-top:5px;"> ~ <input type="date" id="end-date" style="margin-top:5px;"></div>
                 
                 <div style="display:flex; flex-direction:column; gap:5px;">
                     <label style="color:#82aaff; font-size:11px; margin-left:15px;">VIEW MODE</label>
@@ -94,30 +100,32 @@
                     </div>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:5px;">
-                    <label style="color:#82aaff; font-size:11px; margin-left:15px;">VISIBLE SUBJECTS</label>
-                    <div id="subject-filters" class="subject-filters"></div>
-                </div>
+	                <div style="display:flex; flex-direction:column; gap:5px;">
+	                    <label style="color:#82aaff; font-size:11px; margin-left:15px;">VISIBLE SUBJECTS</label>
+	                    <div id="subject-filters" class="subject-filters"></div>
+	                </div>
 
-                <div style="display:flex; flex-direction:column; gap:5px;">
-                    <label style="color:#82aaff; font-size:11px; margin-left:15px;">VISIBLE SUBJECTS</label>
-                    <div id="subject-filters" class="subject-filters"></div>
-                </div>
+	                <div style="margin-top:18px; display:flex; gap:10px;">
+	                    <button onclick="refreshChart()">ANALYZE</button>
+	                    <button onclick="saveExcel()" style="background:#73daca;">SAVE EXCEL</button>
+	                </div>
+	            </div>
+	            <div id="result-display" class="card" style="min-height: 500px;">
+	                <p style="color:#565f89; text-align:center; padding-top:200px;">조회할 종목과 기간을 선택하세요.</p>
+	            </div>
+	        </div>
 
-                <div style="margin-top:18px; display:flex; gap:10px;">
-                    <button onclick="refreshChart()">ANALYZE</button>
-                    <button onclick="saveExcel()" style="background:#73daca;">SAVE EXCEL</button>
-                </div>
-            </div>
-            <div id="result-display" class="card" style="min-height: 500px;">
-                <p style="color:#565f89; text-align:center; padding-top:200px;">조회할 종목과 기간을 선택하세요.</p>
-            </div>
-        </div>
+	        <div id="crypto-dashboard" class="tab-content">
+	            <h1>암호화폐</h1>
+	            <div class="card">
+	                <p style="color:#9ea9c1; margin:0;">준비중입니다. (다음 단계: 거래소 API 연동 + 시세/거래대금/수급 지표 설계)</p>
+	            </div>
+	        </div>
 
-        <div id="git-commands" class="tab-content">
-            <h1>GIT COMMANDS LOG</h1>
-            <div class="card" id="md-editor-container"> <div class="git-commands-header">
-                    <div class="git-commands-title">
+	        <div id="git-commands" class="tab-content">
+	            <h1>GIT COMMANDS LOG</h1>
+	            <div class="card" id="md-editor-container"> <div class="git-commands-header">
+	                    <div class="git-commands-title">
                         <p class="git-commands-note">개발 중에 알게 된 Git 명령어를 기록하고 Gist와 동기화하세요.</p>
                         <span id="git-commands-status" class="status-pill">Ready</span>
                     </div>
