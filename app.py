@@ -19,8 +19,6 @@ BINANCE_BASE_URL = "https://api.binance.com"
 CRYPTO_SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
 GIST_TOKEN = os.getenv("GIST_TOKEN")
 GIST_ID = os.getenv("GIST_ID")
-print("DBG : ",GIST_ID)
-print("DBG : ",GIST_TOKEN)
 GIT_COMMANDS_FILE = os.getenv("GIT_COMMANDS_FILE", "git_commands.md")
 INSIGHTS_FILE = os.getenv("INSIGHTS_FILE", "Insights.md")
 
@@ -57,6 +55,20 @@ def get_gist_manager():
     if not GIST_TOKEN or not GIST_ID:
         return None
     return GistManager(GIST_TOKEN, GIST_ID)
+
+
+def gist_config_missing_response():
+    return (
+        jsonify(
+            {
+                "status": "ERROR",
+                "error_code": "GIST_CONFIG_MISSING",
+                "error_msg": "Gist integration is not configured. Set GIST_TOKEN and GIST_ID in .env and restart the server.",
+            }
+        ),
+        500,
+    )
+
 
 def init_system():
     if not os.path.exists(DOCS_DIR): os.makedirs(DOCS_DIR)
@@ -159,7 +171,7 @@ def crypto_data():
 def git_commands():
     gist_manager = get_gist_manager()
     if gist_manager is None:
-        return jsonify({"status": "ERROR", "error_msg": "Missing GIST_TOKEN or GIST_ID"}), 500
+        return gist_config_missing_response()
     if request.method == 'POST':
         payload = request.get_json(silent=True) or {}
         content = payload.get("content", "")
@@ -175,7 +187,7 @@ def git_commands():
 def insights():
     gist_manager = get_gist_manager()
     if gist_manager is None:
-        return jsonify({"status": "ERROR", "error_msg": "Missing GIST_TOKEN or GIST_ID"}), 500
+        return gist_config_missing_response()
     if request.method == 'POST':
         payload = request.get_json(silent=True) or {}
         content = payload.get("content", "")

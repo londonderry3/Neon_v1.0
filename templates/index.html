@@ -498,10 +498,12 @@
             const editor = document.getElementById(config.editorId);
             const preview = config.previewId ? document.getElementById(config.previewId) : null;
             const status = document.getElementById(config.statusId);
+            const saveBtn = document.getElementById(config.saveBtnId);
 
             if (!editor) return;
             editor.value = "Syncing content from Gist...";
             if (status) status.innerText = "Syncing...";
+            if (saveBtn) saveBtn.disabled = true;
 
             try {
                 const response = await fetch(config.endpoint);
@@ -513,13 +515,31 @@
                         renderMarkdown(preview, data.content);
                     }
                     if (status) status.innerText = "Connected";
+                    if (saveBtn) saveBtn.disabled = false;
                 } else {
-                    editor.value = "Load failed: " + (data.error_msg || "Unknown");
-                    if (status) status.innerText = "Error";
+                    if (data.error_code === "GIST_CONFIG_MISSING") {
+                        editor.value =
+`Gist setup required.
+
+1) Open .env
+2) Set GIST_TOKEN and GIST_ID
+3) Restart this Flask server
+
+Then click REFRESH.`;
+                        if (status) status.innerText = "Setup Required";
+                    } else {
+                        editor.value = "Load failed: " + (data.error_msg || "Unknown");
+                        if (status) status.innerText = "Error";
+                    }
                 }
             } catch (err) {
                 console.error("Fetch Error:", err);
                 editor.value = "Server communication error";
+                if (status) status.innerText = "Error";
+            } finally {
+                if (saveBtn && status && status.innerText === "Connected") {
+                    saveBtn.disabled = false;
+                }
             }
         }
 
