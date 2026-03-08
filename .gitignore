@@ -13,3 +13,4 @@ env/
 .idea/
 .vscode/
 .env
+analysis/crypto_cache.db

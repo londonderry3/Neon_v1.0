@@ -42,6 +42,8 @@
         .metric-item { background: #24283b; padding: 12px; border-radius: 8px; border-left: 4px solid #414868; }
         .subject-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         .subject-filters label { font-size: 12px; color: #9ea9c1; display: flex; align-items: center; gap: 6px; background: #0f111a; padding: 6px 10px; border-radius: 999px; border: 1px solid #414868; cursor: pointer; }
+        .indicator-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+        .indicator-filters label { font-size: 12px; color: #9ea9c1; display: flex; align-items: center; gap: 6px; background: #0f111a; padding: 6px 10px; border-radius: 999px; border: 1px solid #414868; cursor: pointer; }
         .git-commands-grid { display: flex; flex-direction: column; gap: 16px; }
         .git-commands-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
         .git-commands-title { display: flex; flex-direction: column; gap: 4px; }
@@ -65,6 +67,9 @@
         .crypto-live-status { display: inline-block; margin-left: 10px; color: #9ea9c1; font-size: 12px; }
         .crypto-chart { width: 100%; height: 320px; margin-top: 10px; }
         .crypto-chart-card { margin-top: 14px; background: #101320; border: 1px solid #2e3440; border-radius: 10px; padding: 14px; }
+        .crypto-chart-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: stretch; }
+        .crypto-side-chart { width: 100%; height: 320px; margin-top: 10px; }
+        .crypto-backtest-chart { width: 100%; height: 280px; margin-top: 12px; }
     </style>
 </head>
 	<body>
@@ -73,10 +78,10 @@
 	        <div class="nav-label">DASHBOARD</div>
 
 	        <div class="nav-label">STOCKS</div>
-	        <div class="nav-item active" onclick="openTab(event, 'realtime-chart')">└ 📈 Supply/Demand</div>
+		        <div class="nav-item" onclick="openTab(event, 'realtime-chart')">└ 📈 Supply/Demand</div>
 
 		        <div class="nav-label">CRYPTO</div>
-		        <div class="nav-item" onclick="openTab(event, 'crypto-dashboard')">└ 🪙 Crypto Dashboard</div>
+			        <div class="nav-item active" onclick="openTab(event, 'crypto-dashboard')">└ 🪙 Crypto Dashboard</div>
 
 	        <div class="nav-label">PERSONAL OS</div>
 	        <div class="nav-item" onclick="openTab(event, 'git-commands')">└ 🧾 Git Commands</div>
@@ -89,7 +94,7 @@
 	    </div>
 
 	    <div class="main-content">
-		        <div id="realtime-chart" class="tab-content active">
+			        <div id="realtime-chart" class="tab-content">
 		            <h1>Stock Flow Analysis</h1>
 		            <div class="search-box">
 		                <div><label style="color:#82aaff; font-size:11px;">TICKER</label><br><input type="text" id="ticker-input" value="005930" style="width:80px; margin-top:5px;"></div>
@@ -118,22 +123,38 @@
 	            </div>
 	        </div>
 
-	        <div id="crypto-dashboard" class="tab-content">
+		        <div id="crypto-dashboard" class="tab-content active">
 	            <h1>Cryptocurrency</h1>
 	            <div class="search-box">
 	                <div>
 	                    <label style="color:#82aaff; font-size:11px;">SYMBOLS</label><br>
 	                    <span style="display:inline-block; margin-top:10px; color:#9ea9c1;">BTC / ETH / SOL (USDT)</span>
 	                </div>
-	                <div>
-	                    <label style="color:#82aaff; font-size:11px;">INTERVAL</label><br>
-	                    <select id="crypto-interval" style="margin-top:5px; background:#0f111a; border:1px solid #4c566a; color:#eceff4; padding:8px 12px; border-radius:6px;">
-	                        <option value="15m">15m</option>
-	                        <option value="1h" selected>1h</option>
-	                        <option value="4h">4h</option>
-	                        <option value="1d">1d</option>
-	                    </select>
-	                </div>
+		                <div>
+		                    <label style="color:#82aaff; font-size:11px;">INTERVAL</label><br>
+		                    <select id="crypto-interval" style="margin-top:5px; background:#0f111a; border:1px solid #4c566a; color:#eceff4; padding:8px 12px; border-radius:6px;">
+		                        <option value="15m">15m</option>
+		                        <option value="1h">1h</option>
+		                        <option value="1d" selected>1d</option>
+		                        <option value="1w">1w</option>
+		                        <option value="1M">1M</option>
+		                    </select>
+		                </div>
+                        <div>
+                            <label style="color:#82aaff; font-size:11px;">PRICE SAMPLE</label><br>
+                            <select id="crypto-analysis-interval" style="margin-top:5px; background:#0f111a; border:1px solid #4c566a; color:#eceff4; padding:8px 12px; border-radius:6px;">
+                                <option value="1h">1h</option>
+                                <option value="4h">4h</option>
+                                <option value="8h" selected>8h</option>
+                                <option value="24h">24h</option>
+                            </select>
+                        </div>
+	                    <div>
+	                        <label style="color:#82aaff; font-size:11px;">INDICATORS</label><br>
+	                        <div id="crypto-indicators" class="indicator-filters">
+	                            <label><input type="checkbox" data-indicator="funding" checked> Funding Rate</label>
+	                        </div>
+                    </div>
 	                <div style="margin-top:18px;">
 	                    <button onclick="loadCryptoData()">LOAD CRYPTO</button>
 	                </div>
@@ -202,6 +223,7 @@
         let currentChartData = null; // Keep data in memory
         let currentCryptoData = null;
         let cryptoAutoRefreshTimer = null;
+        let selectedCryptoIndicators = new Set(['funding']);
         let selectedSubjects = null;
         let subjectList = [];
 
@@ -213,6 +235,19 @@
             document.getElementById('start-date').value = lastMonth;
             document.getElementById('end-date').value = today;
             document.querySelectorAll('.markdown-body').forEach(el => renderMarkdown(el, el.innerText));
+            document.getElementById('crypto-indicators').addEventListener('change', (event) => {
+                const target = event.target;
+                if (!target.matches('input[data-indicator]')) return;
+                const key = target.dataset.indicator;
+                if (target.checked) {
+                    selectedCryptoIndicators.add(key);
+                } else {
+                    selectedCryptoIndicators.delete(key);
+                }
+                if (currentCryptoData) {
+                    loadCryptoData();
+                }
+            });
             document.getElementById('subject-filters').addEventListener('change', (event) => {
                 const target = event.target;
                 if (!target.matches('input[data-subject]')) return;
@@ -390,11 +425,13 @@
 
         async function loadCryptoData() {
             const interval = document.getElementById('crypto-interval').value;
+            const requestedAnalysisInterval = document.getElementById('crypto-analysis-interval').value;
+            const analysisInterval = selectedCryptoIndicators.has('funding') ? '8h' : requestedAnalysisInterval;
             const display = document.getElementById('crypto-display');
             display.innerHTML = '<p style="text-align:center; padding-top:220px; color:#82aaff;">Loading crypto market data...</p>';
 
             try {
-                const response = await fetch(`/api/crypto-data?interval=${interval}&limit=120`);
+                const response = await fetch(`/api/crypto-data?interval=${interval}&analysis_interval=${analysisInterval}&limit=120`);
                 const data = await response.json();
                 if (data.status !== 'SUCCESS') {
                     display.innerHTML = `<h2 style="color:#f7768e; text-align:center; padding-top:120px;">❌ Error: ${data.error_msg || 'unknown'}</h2>`;
@@ -459,6 +496,141 @@
             }
         }
 
+        function formatLagText(lagMs, lagSteps) {
+            if (lagMs === null || lagMs === undefined) {
+                return `${lagSteps ?? 0} steps`;
+            }
+            const absMs = Math.abs(lagMs);
+            const sign = lagMs > 0 ? '+' : (lagMs < 0 ? '-' : '0');
+            const hours = absMs / (1000 * 60 * 60);
+            if (hours >= 24) {
+                const days = hours / 24;
+                return `${sign}${days.toFixed(2)}d`;
+            }
+            if (hours >= 1) {
+                return `${sign}${hours.toFixed(2)}h`;
+            }
+            const mins = absMs / (1000 * 60);
+            return `${sign}${mins.toFixed(0)}m`;
+        }
+
+        function renderFundingAnalysisLines(asset) {
+            if (!selectedCryptoIndicators.has('funding')) return '';
+            const corr = asset.indicator_correlations ? asset.indicator_correlations.funding : null;
+            const corrSamples = asset.correlation_samples ? asset.correlation_samples.funding : 0;
+            const lead = asset.indicator_lead_analysis ? asset.indicator_lead_analysis.funding : null;
+            const cross = lead ? lead.cross_correlation : null;
+            const granger = lead ? lead.granger : null;
+            const mi = lead ? lead.mutual_information : null;
+
+            const corrText = (typeof corr === 'number' && Number.isFinite(corr))
+                ? `Corr(Price, Funding): ${corr.toFixed(4)} (n=${corrSamples})`
+                : `Corr(Price, Funding): N/A`;
+
+            const crossText = (cross && typeof cross.best_corr === 'number')
+                ? `XCorr max: ${cross.best_corr.toFixed(4)} @ lag ${formatLagText(cross.best_lag_ms, cross.best_lag_steps)}`
+                : 'XCorr max: N/A';
+
+            const miText = (mi && typeof mi.best_mi === 'number')
+                ? `Delayed MI: ${mi.best_mi.toFixed(4)} @ lag ${formatLagText(mi.best_lag_ms, mi.best_lag_steps)}`
+                : 'Delayed MI: N/A';
+
+            let grangerText = 'Granger p-value: N/A';
+            if (granger && granger.available && typeof granger.best_pvalue === 'number') {
+                grangerText = `Granger p-value: ${granger.best_pvalue.toExponential(2)} (lag=${granger.best_lag_steps})`;
+            } else if (granger && !granger.available) {
+                const reason = granger.reason ? ` (${granger.reason})` : '';
+                grangerText = `Granger p-value: unavailable${reason}`;
+            }
+
+            return `
+                <div style="font-size:11px; color:#c0caf5; margin-top:4px;">${corrText}</div>
+                <div style="font-size:11px; color:#9ea9c1; margin-top:2px;">${crossText}</div>
+                <div style="font-size:11px; color:#9ea9c1; margin-top:2px;">${miText}</div>
+                <div style="font-size:11px; color:#9ea9c1; margin-top:2px;">${grangerText}</div>
+            `;
+        }
+
+        function fmtPct(v) {
+            if (typeof v !== 'number' || !Number.isFinite(v)) return 'N/A';
+            return `${(v * 100).toFixed(2)}%`;
+        }
+
+        function fmtNum(v, d=3) {
+            if (typeof v !== 'number' || !Number.isFinite(v)) return 'N/A';
+            return v.toFixed(d);
+        }
+
+        function renderKalmanLines(asset) {
+            if (!selectedCryptoIndicators.has('funding')) return '';
+            const lead = asset.indicator_lead_analysis ? asset.indicator_lead_analysis.funding : null;
+            const kalmanBacktest = lead ? lead.kalman_backtest : null;
+            const adaptiveLag = lead ? lead.adaptive_lag : null;
+            if (!kalmanBacktest || !kalmanBacktest.metrics) return '<div style="font-size:11px; color:#9ea9c1; margin-top:4px;">Kalman adaptive: insufficient samples</div>';
+
+            return `
+                <div style="font-size:11px; color:#bb9af7; margin-top:6px;">
+                    Kalman Adaptive Equity | Full Sharpe ${fmtNum(kalmanBacktest.metrics?.full_sample?.sharpe, 2)} | CAGR ${fmtPct(kalmanBacktest.metrics?.full_sample?.cagr)} | MDD ${fmtPct(kalmanBacktest.metrics?.full_sample?.mdd)}
+                </div>
+                <div style="font-size:11px; color:#9ea9c1; margin-top:2px;">
+                    Lag Trace | Latest Lag=${kalmanBacktest.sweet_spot_lag_steps || 0} | Samples=${adaptiveLag && adaptiveLag.times ? adaptiveLag.times.length : 0}
+                </div>
+            `;
+        }
+
+        function renderBacktestLines(asset) {
+            if (!selectedCryptoIndicators.has('funding')) return '';
+            const lead = asset.indicator_lead_analysis ? asset.indicator_lead_analysis.funding : null;
+            const backtest = lead ? lead.backtest : null;
+            const kalmanBacktest = lead ? lead.kalman_backtest : null;
+            if (!backtest || !backtest.metrics) return '<div style="font-size:11px; color:#9ea9c1; margin-top:4px;">Backtest: insufficient samples</div>';
+
+            const isM = backtest.metrics.in_sample || {};
+            const oosM = backtest.metrics.out_of_sample || {};
+            const ofM = backtest.metrics.overfitting || {};
+            const kIs = kalmanBacktest && kalmanBacktest.metrics ? kalmanBacktest.metrics.in_sample || {} : null;
+            const kOos = kalmanBacktest && kalmanBacktest.metrics ? kalmanBacktest.metrics.out_of_sample || {} : null;
+            return `
+                <div style="font-size:11px; color:#73daca; margin-top:6px;">
+                    Backtest(IS 66% / OOS 33%) | Lag=${backtest.sweet_spot_lag_steps}, Mode=${backtest.direction === 1 ? 'trend' : 'contrarian'}, Select=${backtest.selection_metric || 'is_sharpe'}${typeof backtest.selection_score === 'number' ? ` (${backtest.selection_score.toFixed(2)})` : ''}
+                </div>
+                <div style="font-size:11px; color:#9ea9c1; margin-top:2px;">
+                    IS: CAGR ${fmtPct(isM.cagr)} | Sharpe ${fmtNum(isM.sharpe, 2)} | MDD ${fmtPct(isM.mdd)} | Win ${fmtPct(isM.win_rate)}
+                </div>
+                <div style="font-size:11px; color:#9ea9c1; margin-top:2px;">
+                    OOS: CAGR ${fmtPct(oosM.cagr)} | Sharpe ${fmtNum(oosM.sharpe, 2)} | MDD ${fmtPct(oosM.mdd)} | Win ${fmtPct(oosM.win_rate)}
+                </div>
+                <div style="font-size:11px; color:#9ea9c1; margin-top:2px;">
+                    Overfitting: CAGR Δ ${fmtPct(ofM.cagr_degradation)} | Sharpe Δ ${fmtPct(ofM.sharpe_degradation)}
+                </div>
+                ${kalmanBacktest && kalmanBacktest.metrics ? `
+                <div style="font-size:11px; color:#e0af68; margin-top:4px;">
+                    Kalman Adaptive Lag | Latest Lag=${kalmanBacktest.sweet_spot_lag_steps}, Mode=${kalmanBacktest.direction === 1 ? 'trend' : 'contrarian'}${typeof kalmanBacktest.selection_score === 'number' ? ` | Hist Sharpe ${kalmanBacktest.selection_score.toFixed(2)}` : ''}
+                </div>
+                <div style="font-size:11px; color:#9ea9c1; margin-top:2px;">
+                    Kalman IS: CAGR ${fmtPct(kIs.cagr)} | Sharpe ${fmtNum(kIs.sharpe, 2)} | MDD ${fmtPct(kIs.mdd)}
+                </div>
+                <div style="font-size:11px; color:#9ea9c1; margin-top:2px;">
+                    Kalman OOS: CAGR ${fmtPct(kOos.cagr)} | Sharpe ${fmtNum(kOos.sharpe, 2)} | MDD ${fmtPct(kOos.mdd)}
+                </div>` : ''}
+            `;
+        }
+
+        function buildGaussianFit(xVals, yVals) {
+            if (!xVals.length || !yVals.length || xVals.length !== yVals.length) {
+                return [];
+            }
+            const weights = yVals.map(v => Math.abs(v));
+            const wSum = weights.reduce((a, b) => a + b, 0);
+            if (wSum <= 0) return xVals.map(() => 0);
+
+            const mean = xVals.reduce((acc, x, i) => acc + x * weights[i], 0) / wSum;
+            const variance = xVals.reduce((acc, x, i) => acc + ((x - mean) ** 2) * weights[i], 0) / wSum;
+            const std = Math.sqrt(Math.max(variance, 1e-6));
+            const maxAmp = Math.max(...weights, 1e-6);
+            return xVals.map(x => maxAmp * Math.exp(-0.5 * ((x - mean) / std) ** 2));
+        }
+
         function renderCryptoChart() {
             if (!currentCryptoData) return;
             const display = document.getElementById('crypto-display');
@@ -483,31 +655,391 @@
                 ${assets.map((asset) => `
                     <div class="crypto-chart-card">
                         <div style="font-size:14px; color:#82aaff; font-weight:bold;">${asset.symbol} Price Chart</div>
-                        <div id="crypto-trend-chart-${asset.symbol}" class="crypto-chart"></div>
+                        <div style="font-size:11px; color:#7f8aa3; margin-top:3px;">
+                            Indicators: ${selectedCryptoIndicators.size ? Array.from(selectedCryptoIndicators).join(', ') : 'none'}
+                            ${asset.price_resolution ? ` | Price analysis: ${asset.price_resolution.analysis_interval} (${asset.price_resolution.analysis_points} pts)` : ''}
+                            ${selectedCryptoIndicators.has('funding') ? ` | Funding plot: ${asset.funding_resolution || 'raw_8h'}` : ''}
+                        </div>
+                        ${renderFundingAnalysisLines(asset)}
+                        ${renderKalmanLines(asset)}
+                        ${renderBacktestLines(asset)}
+                        <div class="crypto-chart-row">
+                            <div id="crypto-trend-chart-${asset.symbol}" class="crypto-chart"></div>
+                            <div id="crypto-sweep-chart-${asset.symbol}" class="crypto-side-chart"></div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:14px; align-items:start; margin-top:14px;">
+                            <div>
+                                <div style="font-size:11px; color:#9ea9c1; margin-bottom:6px;">Equity</div>
+                                <div id="crypto-backtest-chart-full-${asset.symbol}" class="crypto-backtest-chart"></div>
+                            </div>
+                            <div>
+                                <div style="font-size:11px; color:#9ea9c1; margin-bottom:6px;">Adaptive Lag vs Kalman Forecast</div>
+                                <div id="crypto-kalman-chart-${asset.symbol}" class="crypto-backtest-chart"></div>
+                            </div>
+                        </div>
                     </div>
                 `).join('')}
             `;
 
             assets.forEach((asset) => {
                 const chartId = `crypto-trend-chart-${asset.symbol}`;
-                const trace = {
-                    x: asset.times.map((ts) => new Date(ts)),
+                const priceX = asset.times.map((ts) => new Date(ts));
+                const priceTrace = {
+                    x: priceX,
                     y: asset.closes,
                     mode: 'lines',
-                    name: asset.symbol,
+                    name: `${asset.symbol} Price`,
                     line: { width: 2.5, shape: 'spline' }
                 };
+                const fundingTrace = {
+                    x: (asset.funding_times || []).map((ts) => new Date(ts)),
+                    y: asset.funding_rates || [],
+                    mode: 'lines+markers',
+                    type: 'scatter',
+                    name: `${asset.symbol} Funding (%)`,
+                    yaxis: 'y2',
+                    line: { width: 1.6, color: '#82aaff' },
+                    marker: { size: 4, color: '#82aaff' },
+                    opacity: 0.85
+                };
+                const kalman = asset.indicator_lead_analysis && asset.indicator_lead_analysis.funding
+                    ? asset.indicator_lead_analysis.funding.kalman
+                    : null;
+                const kalmanFilteredTrace = {
+                    x: kalman && kalman.all ? (kalman.all.times || []).map((ts) => new Date(ts)) : [],
+                    y: kalman && kalman.all ? (kalman.all.filtered || []) : [],
+                    mode: 'lines',
+                    type: 'scatter',
+                    name: `${asset.symbol} Kalman Filtered (%)`,
+                    yaxis: 'y2',
+                    line: { width: 2.2, color: '#bb9af7', dash: 'dash' },
+                    opacity: 0.95
+                };
+                const traces = [priceTrace];
+                if (selectedCryptoIndicators.has('funding')) {
+                    traces.push(fundingTrace);
+                    if (kalman && kalman.all && Array.isArray(kalman.all.filtered)) {
+                        traces.push(kalmanFilteredTrace);
+                    }
+                }
 
-                Plotly.newPlot(chartId, [trace], {
+                Plotly.newPlot(chartId, traces, {
                     paper_bgcolor: 'rgba(0,0,0,0)',
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     font: { color: '#eceff4' },
-                    margin: { t: 20, b: 60, l: 60, r: 20 },
+                    margin: { t: 20, b: 58, l: 68, r: 68 },
                     hovermode: 'x unified',
-                    xaxis: { type: 'date', gridcolor: '#2e3440', zeroline: false },
-                    yaxis: { title: 'Price (USDT)', gridcolor: '#2e3440', zeroline: false },
+                    xaxis: {
+                        type: 'date',
+                        gridcolor: '#2e3440',
+                        zeroline: false,
+                        range: [priceX[0], priceX[priceX.length - 1]],
+                        automargin: true
+                    },
+                    yaxis: {
+                        title: 'Price (USDT)',
+                        gridcolor: '#2e3440',
+                        zeroline: false,
+                        automargin: true
+                    },
+                    ...(selectedCryptoIndicators.has('funding') ? {
+                        yaxis2: {
+                            title: { text: 'Funding Rate (%)', standoff: 12 },
+                            overlaying: 'y',
+                            side: 'right',
+                            showgrid: false,
+                            zeroline: true,
+                            zerolinecolor: '#414868',
+                            tickformat: '.4f',
+                            tickfont: { size: 10, color: '#82aaff' },
+                            titlefont: { size: 10, color: '#82aaff' },
+                            automargin: true
+                        }
+                    } : {}),
                     showlegend: false
                 }, { responsive: true });
+
+                const sweepChartId = `crypto-sweep-chart-${asset.symbol}`;
+                const lead = asset.indicator_lead_analysis ? asset.indicator_lead_analysis.funding : null;
+                const crossSweep = lead && lead.cross_correlation && lead.cross_correlation.sweep
+                    ? lead.cross_correlation.sweep
+                    : { lag_steps: [], values: [] };
+                const xLag = crossSweep.lag_steps || [];
+                const yCorr = (crossSweep.values || []).map(v => Math.abs(v));
+                const yGauss = buildGaussianFit(xLag, yCorr);
+
+                const sideTraces = [];
+                if (xLag.length && yCorr.length) {
+                    sideTraces.push({
+                        x: xLag,
+                        y: yCorr,
+                        type: 'bar',
+                        name: '|XCorr|',
+                        marker: { color: 'rgba(130,170,255,0.45)' },
+                        opacity: 0.85
+                    });
+                    sideTraces.push({
+                        x: xLag,
+                        y: yGauss,
+                        mode: 'lines',
+                        type: 'scatter',
+                        name: 'Gaussian fit',
+                        line: { color: '#73daca', width: 2.0, shape: 'spline' },
+                        opacity: 0.9
+                    });
+                } else {
+                    sideTraces.push({
+                        x: [0],
+                        y: [0],
+                        mode: 'markers',
+                        type: 'scatter',
+                        marker: { color: 'rgba(0,0,0,0)' },
+                        showlegend: false,
+                        hoverinfo: 'none'
+                    });
+                }
+
+                Plotly.newPlot(sweepChartId, sideTraces, {
+                    paper_bgcolor: 'rgba(0,0,0,0)',
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    font: { color: '#eceff4', size: 11 },
+                    margin: { t: 20, b: 58, l: 52, r: 16 },
+                    barmode: 'overlay',
+                    xaxis: {
+                        title: 'Lag (steps)',
+                        gridcolor: '#2e3440',
+                        zeroline: false,
+                        automargin: true
+                    },
+                    yaxis: {
+                        title: '|XCorr|',
+                        gridcolor: '#2e3440',
+                        zeroline: false,
+                        automargin: true
+                    },
+                    legend: { orientation: 'h', y: -0.28, x: 0.0 }
+                }, { responsive: true });
+
+                const backtestFullId = `crypto-backtest-chart-full-${asset.symbol}`;
+                const kalmanChartId = `crypto-kalman-chart-${asset.symbol}`;
+                const backtest = lead ? lead.backtest : null;
+                const kalmanBacktest = lead ? lead.kalman_backtest : null;
+                const lagKalmanEquity = lead ? lead.lag_kalman_equity : null;
+                const renderBacktestPanel = (containerId, panel, panelLabel) => {
+                    if (!panel) return;
+                    const btTimes = (panel.times || []).map(ts => new Date(ts));
+                    const btStrategy = panel.strategy || [];
+                    const btBH = panel.buy_and_hold || [];
+                    const btSweep = panel.lag_sweep || { curves: [] };
+                    const btTraces = [];
+                    (btSweep.curves || []).forEach((curve) => {
+                        if (!curve || !Array.isArray(curve.equity_curve)) return;
+                        const isBestLag = curve.lag_steps === backtest.sweet_spot_lag_steps;
+                        btTraces.push({
+                            x: btTimes,
+                            y: curve.equity_curve,
+                            mode: 'lines',
+                            name: `Lag ${curve.lag_steps}`,
+                            line: {
+                                width: isBestLag ? 2.2 : 1,
+                                color: isBestLag ? 'rgba(115,218,202,0.45)' : 'rgba(130,170,255,0.16)'
+                            },
+                            opacity: isBestLag ? 0.95 : 0.75,
+                            hovertemplate: `Lag ${curve.lag_steps}<br>Equity=%{y:.4f}<extra></extra>`,
+                            showlegend: false
+                        });
+                    });
+                    btTraces.push(
+                        {
+                            x: btTimes,
+                            y: btStrategy,
+                            mode: 'lines+markers',
+                            name: 'Raw Best Lag',
+                            line: { width: 3.6, color: '#73daca' },
+                            marker: {
+                                size: btStrategy.length ? btStrategy.map((_, idx) => idx === btStrategy.length - 1 ? 8 : 0) : [],
+                                color: '#73daca',
+                                symbol: 'diamond'
+                            }
+                        },
+                        {
+                            x: btTimes,
+                            y: btBH,
+                            mode: 'lines',
+                            name: 'Buy & Hold',
+                            line: { width: 1.8, color: '#f7768e' }
+                        }
+                    );
+                    const kalmanPanel = kalmanBacktest && kalmanBacktest.equity_curves
+                        ? kalmanBacktest.equity_curves.full_sample
+                        : null;
+                    if (kalmanPanel && Array.isArray(kalmanPanel.strategy)) {
+                        btTraces.push({
+                            x: (kalmanPanel.times || []).map(ts => new Date(ts)),
+                            y: kalmanPanel.strategy,
+                            mode: 'lines+markers',
+                            name: `Kalman Adaptive (${kalmanBacktest.sweet_spot_lag_steps})`,
+                            line: { width: 2.8, color: '#e0af68', dash: 'dot' },
+                            marker: {
+                                size: kalmanPanel.strategy.length ? kalmanPanel.strategy.map((_, idx) => idx === kalmanPanel.strategy.length - 1 ? 7 : 0) : [],
+                                color: '#e0af68',
+                                symbol: 'circle'
+                            }
+                        });
+                    }
+                    const lagKalmanPanel = lagKalmanEquity && lagKalmanEquity.equity_curve
+                        ? lagKalmanEquity.equity_curve
+                        : null;
+                    if (lagKalmanPanel && Array.isArray(lagKalmanPanel.strategy)) {
+                        btTraces.push({
+                            x: (lagKalmanPanel.times || []).map(ts => new Date(ts)),
+                            y: lagKalmanPanel.strategy,
+                            mode: 'lines',
+                            name: 'Lag Kalman Equity',
+                            line: { width: 2.4, color: '#89ddff', dash: 'dashdot' }
+                        });
+                    }
+                    Plotly.newPlot(containerId, btTraces, {
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { color: '#eceff4', size: 11 },
+                        margin: { t: 18, b: 52, l: 58, r: 20 },
+                        xaxis: { type: 'date', gridcolor: '#2e3440', zeroline: false, automargin: true },
+                        yaxis: { title: 'Equity', gridcolor: '#2e3440', zeroline: false, automargin: true },
+                        title: { text: panelLabel, font: { size: 12, color: '#9ea9c1' }, x: 0.03, y: 0.98, xanchor: 'left' },
+                        legend: { orientation: 'h', y: -0.25, x: 0.0 },
+                        shapes: [],
+                        annotations: [
+                            {
+                                xref: 'paper',
+                                yref: 'paper',
+                                x: 0.98,
+                                y: 0.98,
+                                xanchor: 'right',
+                                yanchor: 'top',
+                                showarrow: false,
+                                align: 'right',
+                                text: `FLAG  Raw ${backtest.sweet_spot_lag_steps} / Kalman latest ${kalmanBacktest ? kalmanBacktest.sweet_spot_lag_steps : 'N/A'} / Lag-KF ${fmtNum(lagKalmanEquity?.lag_used?.[lagKalmanEquity.lag_used.length - 1], 1)}  |  Sharpe ${typeof backtest.selection_score === 'number' ? backtest.selection_score.toFixed(2) : 'N/A'} / ${typeof kalmanBacktest?.selection_score === 'number' ? kalmanBacktest.selection_score.toFixed(2) : 'N/A'} / ${fmtNum(lagKalmanEquity?.metrics?.sharpe, 2)}`,
+                                font: { size: 11, color: '#0b1020' },
+                                bgcolor: '#73daca',
+                                bordercolor: '#c0caf5',
+                                borderwidth: 1,
+                                borderpad: 4
+                            }
+                        ]
+                    }, { responsive: true });
+                };
+
+                if (backtest && backtest.equity_curves && backtest.equity_curves.full_sample) {
+                    renderBacktestPanel(backtestFullId, backtest.equity_curves.full_sample, 'Full Sample');
+                } else {
+                    Plotly.newPlot(backtestFullId, [{
+                        x: [0], y: [0], mode: 'markers', marker: { color: 'rgba(0,0,0,0)' }, hoverinfo: 'none', showlegend: false
+                    }], {
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        margin: { t: 8, b: 8, l: 8, r: 8 },
+                        annotations: [{
+                            xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false,
+                            text: 'Backtest: insufficient samples',
+                            font: { color: '#9ea9c1', size: 12 }
+                        }],
+                        xaxis: { visible: false }, yaxis: { visible: false }
+                    }, { responsive: true });
+                }
+
+                const kalmanPanel = lead ? lead.kalman : null;
+                const adaptiveLag = lead ? lead.adaptive_lag : null;
+                if (kalmanPanel && kalmanPanel.all && kalmanBacktest && adaptiveLag) {
+                    const kalmanTimes = (kalmanBacktest.indicator_preview?.times || kalmanPanel.all.times || []).map(ts => new Date(ts));
+                    const kalmanPredicted = kalmanBacktest.indicator_preview?.predicted || kalmanPanel.all.predicted || [];
+                    const lagTimes = (adaptiveLag.times || []).map(ts => new Date(ts));
+                    const lagKalmanPredicted = adaptiveLag.kalman_predicted || [];
+                    const lagKalmanFiltered = adaptiveLag.kalman_filtered || [];
+                    Plotly.newPlot(kalmanChartId, [
+                        {
+                            x: lagTimes,
+                            y: adaptiveLag.lag_history || [],
+                            mode: 'lines+markers',
+                            name: 'Adaptive Best Lag',
+                            line: { width: 2.2, color: '#73daca' },
+                            marker: { size: 4, color: '#73daca' }
+                        },
+                        {
+                            x: lagTimes,
+                            y: lagKalmanFiltered,
+                            mode: 'lines',
+                            name: 'Lag Kalman Filter',
+                            line: { width: 1.8, color: '#7dcfff', dash: 'dot' }
+                        },
+                        {
+                            x: lagTimes,
+                            y: lagKalmanPredicted,
+                            mode: 'lines',
+                            name: 'Lag Kalman Forecast',
+                            line: { width: 2.0, color: '#89ddff', dash: 'dash' }
+                        },
+                        {
+                            x: kalmanTimes,
+                            y: kalmanPredicted,
+                            mode: 'lines',
+                            name: 'Kalman Funding Forecast',
+                            yaxis: 'y2',
+                            line: { width: 2.2, color: '#bb9af7', dash: 'dash' }
+                        }
+                    ], {
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { color: '#eceff4', size: 11 },
+                        margin: { t: 18, b: 52, l: 58, r: 20 },
+                        xaxis: { type: 'date', gridcolor: '#2e3440', zeroline: false, automargin: true },
+                        yaxis: { title: 'Best Lag (steps)', gridcolor: '#2e3440', zeroline: false, automargin: true },
+                        yaxis2: {
+                            title: 'Kalman Funding (%)',
+                            overlaying: 'y',
+                            side: 'right',
+                            gridcolor: '#2e3440',
+                            showgrid: false,
+                            zeroline: true,
+                            zerolinecolor: '#414868',
+                            tickformat: '.4f',
+                            automargin: true
+                        },
+                        legend: { orientation: 'h', y: -0.25, x: 0.0 },
+                        annotations: [
+                            {
+                                xref: 'paper',
+                                yref: 'paper',
+                                x: 0.98,
+                                y: 0.98,
+                                xanchor: 'right',
+                                yanchor: 'top',
+                                showarrow: false,
+                                align: 'right',
+                                text: `Lag now ${adaptiveLag.lag_history?.[adaptiveLag.lag_history.length - 1] ?? 'N/A'} | Lag KF ${fmtNum(lagKalmanPredicted?.[lagKalmanPredicted.length - 1], 2)}`,
+                                font: { size: 11, color: '#0b1020' },
+                                bgcolor: '#bb9af7',
+                                bordercolor: '#c0caf5',
+                                borderwidth: 1,
+                                borderpad: 4
+                            }
+                        ]
+                    }, { responsive: true });
+                } else {
+                    Plotly.newPlot(kalmanChartId, [{
+                        x: [0], y: [0], mode: 'markers', marker: { color: 'rgba(0,0,0,0)' }, hoverinfo: 'none', showlegend: false
+                    }], {
+                        paper_bgcolor: 'rgba(0,0,0,0)',
+                        plot_bgcolor: 'rgba(0,0,0,0)',
+                        margin: { t: 8, b: 8, l: 8, r: 8 },
+                        annotations: [{
+                            xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false,
+                            text: 'Lag / Kalman comparison: insufficient samples',
+                            font: { color: '#9ea9c1', size: 12 }
+                        }],
+                        xaxis: { visible: false }, yaxis: { visible: false }
+                    }, { responsive: true });
+                }
             });
         }
 
